@@ -1,0 +1,16 @@
+{
+  "name": "m20-controller-backend",
+  "version": "1.0.0",
+  "description": "M20 Robot Dog Controller Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["m20", "robot", "controller"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2"
+  }
+}

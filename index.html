@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M20机器狗上位机控制</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+
+        /* 状态查询面板 */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .status-item {
+            background: #f5f7fa;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .status-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status-value.online {
+            color: #10b981;
+        }
+
+        .status-value.offline {
+            color: #ef4444;
+        }
+
+        /* 运动控制面板 */
+        .control-section {
+            margin-bottom: 20px;
+        }
+
+        .control-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .button-group.two-col {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .btn {
+            padding: 10px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn.danger {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .btn.danger:hover {
+            background: #fecaca;
+        }
+
+        .btn.success {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .btn.success:hover {
+            background: #bbf7d0;
+        }
+
+        /* 虚拟摇杆 */
+        .joystick-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .joystick {
+            width: 200px;
+            height: 200px;
+            background: #f5f7fa;
+            border-radius: 50%;
+            position: relative;
+            border: 3px solid #667eea;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .joystick.active {
+            cursor: grabbing;
+        }
+
+        .joystick-thumb {
+            width: 60px;
+            height: 60px;
+            background: #667eea;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.05s ease;
+        }
+
+        .joystick-center {
+            width: 8px;
+            height: 8px;
+            background: #999;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .joystick-label {
+            position: absolute;
+            font-size: 11px;
+            color: #999;
+            font-weight: 500;
+        }
+
+        .joystick-label.x { bottom: 5px; left: 50%; transform: translateX(-50%); }
+        .joystick-label.y { left: 5px; top: 50%; transform: translateY(-50%); }
+
+        /* 输入框 */
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* 日志面板 */
+        .log-panel {
+            grid-column: 1 / -1;
+        }
+
+        .log-content {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+
+        .log-item {
+            margin-bottom: 4px;
+            padding: 4px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-time {
+            color: #858585;
+        }
+
+        .log-type {
+            display: inline-block;
+            width: 60px;
+            margin: 0 8px;
+            font-weight: 600;
+        }
+
+        .log-type.send {
+            color: #4ec9b0;
+        }
+
+        .log-type.recv {
+            color: #ce9178;
+        }
+
+        .log-type.info {
+            color: #569cd6;
+        }
+
+        .log-type.error {
+            color: #f48771;
+        }
+
+        /* 连接状态指示器 */
+        .connection-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #fee2e2;
+            color: #dc2626;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .connection-indicator.connected {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .indicator-dot {
+            width: 8px;
+            height: 8px;
+            background: currentColor;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+
+        /* 滚动条美化 */
+        .log-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .log-content::-webkit-scrollbar-track {
+            background: #2d2d2d;
+            border-radius: 3px;
+        }
+
+        .log-content::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 3px;
+        }
+
+        .log-content::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 M20机器狗上位机控制</h1>
+            <p>云深处M20机器狗远程控制系统</p>
+            <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                <span style="color: white; font-size: 12px;">M20地址:</span>
+                <input type="text" id="m20IP" placeholder="10.21.31.103" value="10.21.31.103" style="padding: 8px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; width: 130px;">
+                <span style="color: white;">:</span>
+                <input type="number" id="m20Port" placeholder="30001" value="30001" style="padding: 8px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; width: 80px;">
+                <button id="connectM20Btn" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; transition: all 0.3s;">连接</button>
+                <span id="connStatus" style="color: #ef4444; font-size: 12px; font-weight: 500;">✗ 未连接</span>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- 状态查询面板 -->
+            <div class="panel">
+                <div class="panel-title">状态查询</div>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">运动状态</div>
+                        <div class="status-value" id="statusMotion">待命</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">电池电量</div>
+                        <div class="status-value" id="statusBattery">--</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">当前步态</div>
+                        <div class="status-value" id="statusGait">基础</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">位置X</div>
+                        <div class="status-value" id="statusPosX">0.00m</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">位置Y</div>
+                        <div class="status-value" id="statusPosY">0.00m</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">导航状态</div>
+                        <div class="status-value" id="statusNav">空闲</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">温度</div>
+                        <div class="status-value" id="statusTemp">--°C</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 运动控制面板 -->
+            <div class="panel">
+                <div class="panel-title">运动控制</div>
+
+                <div class="control-section">
+                    <div class="control-section-title">运动模式</div>
+                    <div class="button-group two-col">
+                        <button class="btn active" data-mode="standard">标准模式</button>
+                        <button class="btn" data-mode="agile">敏捷模式</button>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <div class="control-section-title">运动状态</div>
+                    <div class="button-group">
+                        <button class="btn" data-action="stand">站立</button>
+                        <button class="btn" data-action="walk">行走</button>
+                        <button class="btn" data-action="down">趴下</button>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <div class="control-section-title">步态选择</div>
+                    <div class="button-group">
+                        <button class="btn active" data-gait="0x1001">基础</button>
+                        <button class="btn" data-gait="0x1002">高台</button>
+                        <button class="btn" data-gait="0x1003">楼梯</button>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <div class="control-section-title">虚拟摇杆</div>
+                    <div class="joystick-container">
+                        <div class="joystick" id="joystick">
+                            <div class="joystick-thumb"></div>
+                            <div class="joystick-center"></div>
+                            <div class="joystick-label x">X轴</div>
+                            <div class="joystick-label y">Y轴</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 12px; color: #666;">
+                        X: <span id="joystickX">0.00</span> | Y: <span id="joystickY">0.00</span> | Yaw: <span id="joystickYaw">0.00</span>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <div class="control-section-title">其他控制</div>
+                    <div class="button-group two-col">
+                        <button class="btn" id="lightFront">前灯 OFF</button>
+                        <button class="btn" id="lightRear">后灯 OFF</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 导航控制面板 -->
+            <div class="panel">
+                <div class="panel-title">导航控制</div>
+
+                <div class="control-section">
+                    <div class="control-section-title">导航任务 - 目标点设置</div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>目标点编号</label>
+                            <input type="number" id="navPointID" placeholder="0" min="0" step="1">
+                        </div>
+                        <div class="input-group">
+                            <label>点类型</label>
+                            <select id="navPointType">
+                                <option value="0">过渡点</option>
+                                <option value="1" selected>任务点</option>
+                                <option value="3">充电点</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>目标X (m)</label>
+                            <input type="number" id="navTargetX" placeholder="0.0" step="0.1">
+                        </div>
+                        <div class="input-group">
+                            <label>目标Y (m)</label>
+                            <input type="number" id="navTargetY" placeholder="0.0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>目标方向 (弧度)</label>
+                        <input type="number" id="navTargetYaw" placeholder="0" step="0.01">
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <div class="control-section-title">导航任务 - 路径属性</div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>步态</label>
+                            <select id="navGait">
+                                <option value="0x3002" selected>平地(敏捷)</option>
+                                <option value="0x3003">楼梯(敏捷)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>速度</label>
+                            <select id="navSpeed">
+                                <option value="0" selected>正常</option>
+                                <option value="1">低速</option>
+                                <option value="2">高速</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>运动方式</label>
+                            <select id="navManner">
+                                <option value="0" selected>前进行走</option>
+                                <option value="1">倒退行走</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>导航方式</label>
+                            <select id="navMode">
+                                <option value="0" selected>直线导航</option>
+                                <option value="1">自主导航</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>停避障功能</label>
+                        <select id="navObsMode">
+                            <option value="0" selected>开启</option>
+                            <option value="1">关闭</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <div class="button-group two-col">
+                        <button class="btn success" id="navStart">开始导航</button>
+                        <button class="btn danger" id="navCancel">取消任务</button>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <div class="control-section-title">定位初始化</div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>初始X (m)</label>
+                            <input type="number" id="initX" placeholder="0.0" step="0.1">
+                        </div>
+                        <div class="input-group">
+                            <label>初始Y (m)</label>
+                            <input type="number" id="initY" placeholder="0.0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>初始方向 (°)</label>
+                        <input type="number" id="initYaw" placeholder="0" min="0" max="360" step="1">
+                    </div>
+                    <button class="btn" id="initLocalize" style="width: 100%;">初始化定位</button>
+                </div>
+
+                <div class="control-section">
+                    <div class="control-section-title">充电控制</div>
+                    <div class="button-group two-col">
+                        <button class="btn success" id="chargeStart">开始充电</button>
+                        <button class="btn danger" id="chargeStop">停止充电</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志面板 -->
+            <div class="panel log-panel">
+                <div class="panel-title">通信日志</div>
+                <div class="log-content" id="logContent">
+                    <div class="log-item">
+                        <span class="log-time">[00:00:00]</span>
+                        <span class="log-type info">INFO</span>
+                        <span>系统已启动，等待连接...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket连接管理
+        class ConnectionManager {
+            constructor() {
+                this.ws = null;
+                this.isConnected = false;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 10;
+                this.reconnectDelay = 1000;
+                this.reconnectTimer = null;
+                this.heartbeatTimer = null;
+                this.heartbeatInterval = 5000; // 5秒心跳
+                this.m20Connected = false;
+            }
+
+            connect(backendUrl = 'ws://localhost:8080') {
+                logger.info(`正在连接到后端服务...`);
+
+                try {
+                    this.ws = new WebSocket(backendUrl);
+
+                    this.ws.onopen = () => {
+                        this.isConnected = true;
+                        this.reconnectAttempts = 0;
+                        this.reconnectDelay = 1000;
+                        logger.info('✓ 已连接到后端服务');
+                        this.startHeartbeat();
+                        this.sendM20Config();
+                    };
+
+                    this.ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            this.handleMessage(data);
+                        } catch (e) {
+                            logger.error(`消息解析失败: ${e.message}`);
+                        }
+                    };
+
+                    this.ws.onerror = (error) => {
+                        logger.error(`连接错误: ${error}`);
+                    };
+
+                    this.ws.onclose = () => {
+                        this.isConnected = false;
+                        logger.info('✗ 后端连接已断开');
+                        this.stopHeartbeat();
+                        this.attemptReconnect(backendUrl);
+                    };
+                } catch (e) {
+                    logger.error(`连接失败: ${e.message}`);
+                }
+            }
+
+            disconnect() {
+                if (this.ws) {
+                    this.ws.close();
+                    this.isConnected = false;
+                }
+                this.stopHeartbeat();
+                clearTimeout(this.reconnectTimer);
+                this.reconnectAttempts = 0;
+            }
+
+            attemptReconnect(backendUrl) {
+                if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                    logger.error(`已达到最大重连次数(${this.maxReconnectAttempts})，停止重连`);
+                    return;
+                }
+
+                this.reconnectAttempts++;
+                const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000);
+                logger.info(`${delay / 1000}秒后进行第${this.reconnectAttempts}次重连...`);
+
+                this.reconnectTimer = setTimeout(() => {
+                    this.connect(backendUrl);
+                }, delay);
+            }
+
+            startHeartbeat() {
+                this.stopHeartbeat();
+                this.heartbeatTimer = setInterval(() => {
+                    if (this.isConnected && this.ws) {
+                        this.send({
+                            type: 'heartbeat',
+                            timestamp: Date.now()
+                        });
+                    }
+                }, this.heartbeatInterval);
+            }
+
+            stopHeartbeat() {
+                if (this.heartbeatTimer) {
+                    clearInterval(this.heartbeatTimer);
+                    this.heartbeatTimer = null;
+                }
+            }
+
+            send(data) {
+                if (this.isConnected && this.ws) {
+                    this.ws.send(JSON.stringify(data));
+                    return true;
+                }
+                return false;
+            }
+
+            sendM20Config(m20IP, m20Port) {
+                this.send({
+                    type: 'config_m20',
+                    host: m20IP,
+                    port: parseInt(m20Port)
+                });
+            }
+
+            handleMessage(data) {
+                if (data.type === 'heartbeat_ack') {
+                    return;
+                }
+
+                if (data.type === 'robot_connected') {
+                    this.m20Connected = true;
+                    this.updateConnectionStatus(true);
+                    logger.info(data.message);
+                } else if (data.type === 'robot_disconnected') {
+                    this.m20Connected = false;
+                    this.updateConnectionStatus(false);
+                    logger.info(data.message);
+                } else if (data.type === 'status') {
+                    this.updateStatus(data.payload);
+                } else if (data.type === 'error') {
+                    logger.error(data.message);
+                } else {
+                    logger.recv(JSON.stringify(data));
+                }
+            }
+
+            updateStatus(status) {
+                if (status.connection !== undefined) {
+                    document.getElementById('statusConnection').textContent = status.connection ? '在线' : '离线';
+                    document.getElementById('statusConnection').className = 'status-value ' + (status.connection ? 'online' : 'offline');
+                }
+                if (status.battery !== undefined) {
+                    document.getElementById('statusBattery').textContent = status.battery + '%';
+                }
+                if (status.motion !== undefined) {
+                    document.getElementById('statusMotion').textContent = status.motion;
+                }
+                if (status.posX !== undefined) {
+                    document.getElementById('statusPosX').textContent = status.posX.toFixed(2) + 'm';
+                }
+                if (status.posY !== undefined) {
+                    document.getElementById('statusPosY').textContent = status.posY.toFixed(2) + 'm';
+                }
+                if (status.navStatus !== undefined) {
+                    document.getElementById('statusNav').textContent = status.navStatus;
+                }
+                if (status.temp !== undefined) {
+                    document.getElementById('statusTemp').textContent = status.temp.toFixed(1) + '°C';
+                }
+            }
+
+            updateConnectionStatus(connected) {
+                const statusEl = document.getElementById('connStatus');
+                if (connected) {
+                    statusEl.textContent = '✓ 已连接';
+                    statusEl.style.color = '#10b981';
+                } else {
+                    statusEl.textContent = '✗ 未连接';
+                    statusEl.style.color = '#ef4444';
+                }
+            }
+        }
+
+        const connManager = new ConnectionManager();
+        class Logger {
+            constructor(elementId) {
+                this.element = document.getElementById(elementId);
+                this.maxLogs = 100;
+            }
+
+            log(type, message) {
+                const time = new Date().toLocaleTimeString('zh-CN');
+                const logItem = document.createElement('div');
+                logItem.className = 'log-item';
+                logItem.innerHTML = `
+                    <span class="log-time">[${time}]</span>
+                    <span class="log-type ${type}">${type.toUpperCase()}</span>
+                    <span>${message}</span>
+                `;
+                this.element.appendChild(logItem);
+
+                // 保持日志数量
+                const items = this.element.querySelectorAll('.log-item');
+                if (items.length > this.maxLogs) {
+                    items[0].remove();
+                }
+
+                // 自动滚动到底部
+                this.element.scrollTop = this.element.scrollHeight;
+            }
+
+            send(message) { this.log('send', message); }
+            recv(message) { this.log('recv', message); }
+            info(message) { this.log('info', message); }
+            error(message) { this.log('error', message); }
+        }
+
+        const logger = new Logger('logContent');
+
+        // 虚拟摇杆
+        class Joystick {
+            constructor(elementId) {
+                this.element = document.getElementById(elementId);
+                this.thumb = this.element.querySelector('.joystick-thumb');
+                this.radius = this.element.offsetWidth / 2;
+                this.x = 0;
+                this.y = 0;
+                this.yaw = 0;
+                this.isActive = false;
+
+                this.element.addEventListener('mousedown', (e) => this.start(e));
+                this.element.addEventListener('touchstart', (e) => this.start(e));
+                document.addEventListener('mousemove', (e) => this.move(e));
+                document.addEventListener('touchmove', (e) => this.move(e));
+                document.addEventListener('mouseup', () => this.end());
+                document.addEventListener('touchend', () => this.end());
+            }
+
+            start(e) {
+                this.isActive = true;
+                this.element.classList.add('active');
+                this.move(e);
+            }
+
+            move(e) {
+                if (!this.isActive) return;
+
+                const rect = this.element.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                let dx = clientX - centerX;
+                let dy = clientY - centerY;
+
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const maxDistance = this.radius - 30;
+
+                if (distance > maxDistance) {
+                    const angle = Math.atan2(dy, dx);
+                    dx = Math.cos(angle) * maxDistance;
+                    dy = Math.sin(angle) * maxDistance;
+                }
+
+                this.x = (dx / maxDistance).toFixed(2);
+                this.y = (-dy / maxDistance).toFixed(2);
+                this.yaw = (Math.atan2(dx, dy) * 180 / Math.PI).toFixed(2);
+
+                const thumbX = dx + this.radius;
+                const thumbY = dy + this.radius;
+                this.thumb.style.transform = `translate(${thumbX}px, ${thumbY}px)`;
+
+                document.getElementById('joystickX').textContent = this.x;
+                document.getElementById('joystickY').textContent = this.y;
+                document.getElementById('joystickYaw').textContent = this.yaw;
+            }
+
+            end() {
+                this.isActive = false;
+                this.element.classList.remove('active');
+                this.x = 0;
+                this.y = 0;
+                this.yaw = 0;
+                this.thumb.style.transform = 'translate(-50%, -50%)';
+                document.getElementById('joystickX').textContent = '0.00';
+                document.getElementById('joystickY').textContent = '0.00';
+                document.getElementById('joystickYaw').textContent = '0.00';
+            }
+        }
+
+        const joystick = new Joystick('joystick');
+
+        // 连接M20按钮
+        document.getElementById('connectM20Btn').addEventListener('click', function() {
+            if (connManager.isConnected) {
+                const m20IP = document.getElementById('m20IP').value || '10.21.31.103';
+                const m20Port = document.getElementById('m20Port').value || '30001';
+                connManager.sendM20Config(m20IP, m20Port);
+                logger.info('正在连接M20...');
+            } else {
+                logger.error('未连接到后端服务');
+            }
+        });
+
+        // 页面加载时自动连接后端
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                connManager.connect('ws://localhost:8080');
+            }, 500);
+        });
+
+        // 按钮事件处理
+        document.querySelectorAll('[data-mode]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                logger.info(`切换到${this.textContent}模式`);
+            });
+        });
+
+        document.querySelectorAll('[data-action]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('[data-action]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const action = this.dataset.action;
+                const msg = {
+                    type: 'motion_control',
+                    action: action
+                };
+                if (connManager.send(msg)) {
+                    logger.send(`运动控制: ${this.textContent}`);
+                } else {
+                    logger.error('未连接到服务器');
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-gait]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('[data-gait]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const msg = {
+                    type: 'gait_switch',
+                    gait: this.dataset.gait
+                };
+                if (connManager.send(msg)) {
+                    logger.send(`步态切换: ${this.textContent} (${this.dataset.gait})`);
+                } else {
+                    logger.error('未连接到服务器');
+                }
+            });
+        });
+
+        // 灯光控制
+        let lightFrontOn = false;
+        let lightRearOn = false;
+
+        document.getElementById('lightFront').addEventListener('click', function() {
+            lightFrontOn = !lightFrontOn;
+            this.textContent = `前灯 ${lightFrontOn ? 'ON' : 'OFF'}`;
+            this.classList.toggle('active');
+            const msg = {
+                type: 'light_control',
+                light: 'front',
+                state: lightFrontOn
+            };
+            if (connManager.send(msg)) {
+                logger.send(`前灯: ${lightFrontOn ? '开启' : '关闭'}`);
+            } else {
+                logger.error('未连接到服务器');
+            }
+        });
+
+        document.getElementById('lightRear').addEventListener('click', function() {
+            lightRearOn = !lightRearOn;
+            this.textContent = `后灯 ${lightRearOn ? 'ON' : 'OFF'}`;
+            this.classList.toggle('active');
+            const msg = {
+                type: 'light_control',
+                light: 'rear',
+                state: lightRearOn
+            };
+            if (connManager.send(msg)) {
+                logger.send(`后灯: ${lightRearOn ? '开启' : '关闭'}`);
+            } else {
+                logger.error('未连接到服务器');
+            }
+        });
+
+        // 导航控制
+        document.getElementById('navStart').addEventListener('click', function() {
+            const pointID = document.getElementById('navPointID').value || '0';
+            const pointType = document.getElementById('navPointType').value;
+            const x = document.getElementById('navTargetX').value;
+            const y = document.getElementById('navTargetY').value;
+            const yaw = document.getElementById('navTargetYaw').value || '0';
+            const gait = document.getElementById('navGait').value;
+            const speed = document.getElementById('navSpeed').value;
+            const manner = document.getElementById('navManner').value;
+            const navMode = document.getElementById('navMode').value;
+            const obsMode = document.getElementById('navObsMode').value;
+
+            if (x && y) {
+                const msg = {
+                    type: 'nav_task',
+                    payload: {
+                        Value: parseInt(pointID),
+                        PointInfo: parseInt(pointType),
+                        PosX: parseFloat(x),
+                        PosY: parseFloat(y),
+                        PosZ: 0,
+                        AngleYaw: parseFloat(yaw),
+                        Gait: gait,
+                        Speed: parseInt(speed),
+                        Manner: parseInt(manner),
+                        NavMode: parseInt(navMode),
+                        ObsMode: parseInt(obsMode)
+                    }
+                };
+                if (connManager.send(msg)) {
+                    logger.send(`导航任务: ${JSON.stringify(msg.payload)}`);
+                } else {
+                    logger.error('未连接到服务器');
+                }
+            } else {
+                logger.error('请输入有效的目标坐标');
+            }
+        });
+
+        document.getElementById('navCancel').addEventListener('click', function() {
+            const msg = { type: 'nav_cancel' };
+            if (connManager.send(msg)) {
+                logger.send('取消导航任务');
+            } else {
+                logger.error('未连接到服务器');
+            }
+        });
+
+        document.getElementById('initLocalize').addEventListener('click', function() {
+            const x = document.getElementById('initX').value || '0';
+            const y = document.getElementById('initY').value || '0';
+            const yaw = document.getElementById('initYaw').value || '0';
+            const msg = {
+                type: 'init_localize',
+                payload: {
+                    x: parseFloat(x),
+                    y: parseFloat(y),
+                    yaw: parseFloat(yaw)
+                }
+            };
+            if (connManager.send(msg)) {
+                logger.send(`初始化定位: (${x}, ${y}), 方向${yaw}°`);
+            } else {
+                logger.error('未连接到服务器');
+            }
+        });
+
+        document.getElementById('chargeStart').addEventListener('click', function() {
+            const msg = { type: 'charge_start' };
+            if (connManager.send(msg)) {
+                logger.send('开始自主充电');
+            } else {
+                logger.error('未连接到服务器');
+            }
+        });
+
+        document.getElementById('chargeStop').addEventListener('click', function() {
+            const msg = { type: 'charge_stop' };
+            if (connManager.send(msg)) {
+                logger.send('停止自主充电');
+            } else {
+                logger.error('未连接到服务器');
+            }
+        });
+
+        // 模拟连接状态更新
+        function updateStatus() {
+            const statuses = ['离线', '在线'];
+            const motions = ['待命', '站立', '行走', '趴下'];
+            const navs = ['空闲', '导航中', '已到达'];
+
+            setInterval(() => {
+                document.getElementById('statusBattery').textContent = (Math.random() * 40 + 60).toFixed(0) + '%';
+                document.getElementById('statusTemp').textContent = (Math.random() * 10 + 35).toFixed(1) + '°C';
+                document.getElementById('statusPosX').textContent = (Math.random() * 10 - 5).toFixed(2) + 'm';
+                document.getElementById('statusPosY').textContent = (Math.random() * 10 - 5).toFixed(2) + 'm';
+            }, 2000);
+        }
+
+        updateStatus();
+        logger.info('前端界面已加载完成');
+    </script>
+</body>
+</html>
