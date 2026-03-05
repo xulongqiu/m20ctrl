@@ -84,9 +84,39 @@ class ControllerServer {
 
         // 设置状态更新回调
         this.m20Client.onStatusUpdate((asdu) => {
+            const parsed = this.protocol.parseStatusReport(asdu);
+            if (!parsed) {
+                // 无法解析，透传原始数据
+                this.broadcastToClients({
+                    type: 'robot_status',
+                    category: 'raw',
+                    data: asdu
+                });
+                return;
+            }
+
+            // 忽略心跳响应
+            if (parsed.category === 'heartbeat') {
+                return;
+            }
+
+            // 命令响应单独处理
+            if (parsed.category === 'command_response') {
+                this.broadcastToClients({
+                    type: 'command_response',
+                    data: parsed.data,
+                    commandType: parsed.type,
+                    command: parsed.command
+                });
+                return;
+            }
+
+            // 主动上报的状态数据
             this.broadcastToClients({
                 type: 'robot_status',
-                payload: asdu
+                category: parsed.category,
+                command: parsed.command,
+                data: parsed.data
             });
         });
 
@@ -143,6 +173,14 @@ class ControllerServer {
 
                 case 'motion_control':
                     this.handleMotionControl(data.action);
+                    break;
+
+                case 'usage_mode':
+                    this.handleUsageModeSwitch(data.mode);
+                    break;
+
+                case 'axis_control':
+                    this.handleAxisControl(data.axes);
                     break;
 
                 case 'gait_switch':
@@ -245,6 +283,34 @@ class ControllerServer {
         const buffer = this.protocol.buildLightControl(light, state);
         this.m20Client.send(buffer);
         console.log(`[Server] 已发送灯光控制命令: ${light} ${state ? 'ON' : 'OFF'}`);
+    }
+
+    /**
+     * 处理使用模式切换
+     */
+    handleUsageModeSwitch(mode) {
+        if (!this.m20Client.isConnected) {
+            this.broadcastToClients({
+                type: 'error',
+                message: '未连接到M20机器狗'
+            });
+            return;
+        }
+
+        const modeNames = { 0: '常规', 1: '导航', 2: '辅助' };
+        const buffer = this.protocol.buildUsageModeSwitch(mode);
+        this.m20Client.send(buffer);
+        console.log(`[Server] 已发送使用模式切换命令: ${modeNames[mode] || mode}`);
+    }
+
+    /**
+     * 处理轴控制（摇杆）
+     */
+    handleAxisControl(axes) {
+        if (!this.m20Client.isConnected) return;
+
+        const buffer = this.protocol.buildAxisControl(axes);
+        this.m20Client.send(buffer);
     }
 
     /**

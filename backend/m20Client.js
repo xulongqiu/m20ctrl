@@ -34,8 +34,7 @@ class M20Client {
 
             this.socket = net.createConnection({
                 host: this.host,
-                port: this.port,
-                timeout: 5000
+                port: this.port
             });
 
             this.socket.on('connect', () => {
@@ -55,8 +54,18 @@ class M20Client {
 
             this.socket.on('error', (error) => {
                 console.error(`[M20Client] 连接错误: ${error.message}`);
-                this.isConnected = false;
-                reject(error);
+                if (!this.isConnected) {
+                    // 连接阶段的错误，直接reject
+                    reject(error);
+                } else {
+                    // 连接成功后的错误，标记为断开并尝试重连
+                    this.isConnected = false;
+                    if (this.connectionChangeCallback) {
+                        this.connectionChangeCallback(false);
+                    }
+                    this.stopHeartbeat();
+                    this.attemptReconnect();
+                }
             });
 
             this.socket.on('close', () => {
@@ -112,33 +121,68 @@ class M20Client {
 
     /**
      * 处理接收到的数据
+     * TCP是流协议，数据可能分片到达或多条消息粘包，需正确处理
      */
     handleData(data) {
         this.receiveBuffer = Buffer.concat([this.receiveBuffer, data]);
 
-        // 尝试解析完整的APDU
-        while (this.receiveBuffer.length >= 16) {
+        // 循环解析，一次data事件可能包含多个APDU
+        while (this.receiveBuffer.length >= this.protocol.HEADER_SIZE) {
             const result = this.protocol.parseAPDU(this.receiveBuffer);
 
             if (!result.valid) {
-                console.error(`[M20Client] 解析错误: ${result.error}`);
-                // 尝试找到下一个有效的协议头
-                const headerIndex = this.receiveBuffer.indexOf(0xEB, 1);
-                if (headerIndex > 0) {
-                    this.receiveBuffer = this.receiveBuffer.slice(headerIndex);
-                } else {
-                    this.receiveBuffer = Buffer.alloc(0);
+                if (result.error === '数据不完整') {
+                    // 正常情况：TCP分片，头部已到达但ASDU尚未完整
+                    // 不丢弃数据，等待下次data事件带来后续数据
+                    break;
                 }
-                break;
+
+                // 真正的错误：协议头不匹配或JSON解析失败
+                // 需要在缓冲区中查找下一个有效的4字节协议头来重新对齐
+                console.error(`[M20Client] 解析错误: ${result.error}`);
+                const nextHeaderPos = this._findNextHeader(this.receiveBuffer, 1);
+                if (nextHeaderPos > 0) {
+                    console.warn(`[M20Client] 跳过 ${nextHeaderPos} 字节，尝试重新对齐`);
+                    this.receiveBuffer = this.receiveBuffer.slice(nextHeaderPos);
+                } else {
+                    // 缓冲区中没有找到有效协议头，清空等待新数据
+                    this.receiveBuffer = Buffer.alloc(0);
+                    break;
+                }
+                continue; // 重新尝试解析
             }
 
-            // 处理完整的APDU
-            console.log(`[M20Client] 收到响应:`, result.asdu);
+            // 成功解析完整的APDU
             this.handleResponse(result.asdu);
 
             // 移除已处理的数据
             this.receiveBuffer = this.receiveBuffer.slice(result.totalLength);
         }
+
+        // 防止缓冲区无限增长（异常保护）
+        if (this.receiveBuffer.length > 1024 * 1024) {
+            console.error(`[M20Client] 缓冲区过大(${this.receiveBuffer.length}字节)，清空`);
+            this.receiveBuffer = Buffer.alloc(0);
+        }
+    }
+
+    /**
+     * 在缓冲区中查找下一个完整的4字节协议头 [0xEB, 0x91, 0xEB, 0x90]
+     * @param {Buffer} buffer - 搜索的缓冲区
+     * @param {number} startOffset - 起始搜索位置
+     * @returns {number} 找到的位置，未找到返回 -1
+     */
+    _findNextHeader(buffer, startOffset) {
+        const header = this.protocol.PROTOCOL_HEADER;
+        for (let i = startOffset; i <= buffer.length - 4; i++) {
+            if (buffer[i] === header[0] &&
+                buffer[i + 1] === header[1] &&
+                buffer[i + 2] === header[2] &&
+                buffer[i + 3] === header[3]) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**

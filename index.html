@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -71,30 +72,103 @@
             border-radius: 2px;
         }
 
-        /* 状态查询面板 */
+        /* 状态查询面板子分类 */
+        .status-section {
+            margin-bottom: 14px;
+        }
+
+        .status-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-section-title.basic {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .status-section-title.motion {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+        }
+
+        .status-section-title.battery {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: #0a3a5a;
+        }
+
+        .status-section-title.gps {
+            background: linear-gradient(135deg, #43e97b, #38f9d7);
+            color: #1a3a2a;
+        }
+
+        .status-section-title.cpu {
+            background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+            color: #3a1a4a;
+        }
+
+        .status-section-title.error {
+            background: linear-gradient(135deg, #fa709a, #fee140);
+            color: #5a2a0a;
+        }
+
         .status-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 6px;
+        }
+
+        .status-grid.three-col {
+            grid-template-columns: repeat(3, 1fr);
         }
 
         .status-item {
             background: #f5f7fa;
-            padding: 12px;
-            border-radius: 8px;
-            border-left: 3px solid #667eea;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border-left: 3px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .status-item.highlight {
+            border-left-color: #667eea;
+        }
+
+        .status-item.warn {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .status-item.danger {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .status-item.ok {
+            border-left-color: #10b981;
         }
 
         .status-label {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 4px;
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 1px;
+            font-weight: 500;
         }
 
         .status-value {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 600;
             color: #333;
+            transition: color 0.3s, opacity 0.3s;
         }
 
         .status-value.online {
@@ -103,6 +177,74 @@
 
         .status-value.offline {
             color: #ef4444;
+        }
+
+        .status-value.warning {
+            color: #f59e0b;
+        }
+
+        .status-value.flash {
+            animation: flashUpdate 0.5s ease;
+        }
+
+        @keyframes flashUpdate {
+            0% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* 电池进度条 */
+        .battery-bar-wrap {
+            margin-top: 4px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            height: 6px;
+            overflow: hidden;
+        }
+
+        .battery-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.6s ease, background 0.6s ease;
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
+        .battery-bar.low {
+            background: linear-gradient(90deg, #ef4444, #f87171);
+        }
+
+        .battery-bar.mid {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        /* 异常列表 */
+        .error-list {
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        .error-item {
+            padding: 4px 8px;
+            margin-bottom: 3px;
+            background: #fef2f2;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #b91c1c;
+        }
+
+        .no-error {
+            text-align: center;
+            color: #10b981;
+            font-size: 12px;
+            padding: 8px 0;
+        }
+
+        .no-error::before {
+            content: '✓ ';
         }
 
         /* 运动控制面板 */
@@ -224,8 +366,17 @@
             font-weight: 500;
         }
 
-        .joystick-label.x { bottom: 5px; left: 50%; transform: translateX(-50%); }
-        .joystick-label.y { left: 5px; top: 50%; transform: translateY(-50%); }
+        .joystick-label.x {
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .joystick-label.y {
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
 
         /* 输入框 */
         .input-group {
@@ -340,8 +491,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         /* 响应式 */
@@ -383,17 +541,22 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1>🤖 M20机器狗上位机控制</h1>
             <p>云深处M20机器狗远程控制系统</p>
-            <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
+            <div
+                style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
                 <span style="color: white; font-size: 12px;">M20地址:</span>
-                <input type="text" id="m20IP" placeholder="10.21.31.103" value="10.21.31.103" style="padding: 8px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; width: 130px;">
+                <input type="text" id="m20IP" placeholder="10.21.31.103" value="10.21.31.103"
+                    style="padding: 8px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; width: 130px;">
                 <span style="color: white;">:</span>
-                <input type="number" id="m20Port" placeholder="30001" value="30001" style="padding: 8px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; width: 80px;">
-                <button id="connectM20Btn" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; transition: all 0.3s;">连接</button>
+                <input type="number" id="m20Port" placeholder="30001" value="30001"
+                    style="padding: 8px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; width: 80px;">
+                <button id="connectM20Btn"
+                    style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; transition: all 0.3s;">连接</button>
                 <span id="connStatus" style="color: #ef4444; font-size: 12px; font-weight: 500;">✗ 未连接</span>
             </div>
         </div>
@@ -402,36 +565,210 @@
             <!-- 状态查询面板 -->
             <div class="panel">
                 <div class="panel-title">状态查询</div>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <div class="status-label">运动状态</div>
-                        <div class="status-value" id="statusMotion">待命</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">电池电量</div>
-                        <div class="status-value" id="statusBattery">--</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">当前步态</div>
-                        <div class="status-value" id="statusGait">基础</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">位置X</div>
-                        <div class="status-value" id="statusPosX">0.00m</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">位置Y</div>
-                        <div class="status-value" id="statusPosY">0.00m</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">导航状态</div>
-                        <div class="status-value" id="statusNav">空闲</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">温度</div>
-                        <div class="status-value" id="statusTemp">--°C</div>
+
+                <!-- 基础状态 -->
+                <div class="status-section">
+                    <div class="status-section-title basic">🏃 基础状态</div>
+                    <div class="status-grid three-col">
+                        <div class="status-item highlight">
+                            <div class="status-label">运动状态</div>
+                            <div class="status-value" id="sMotionState">--</div>
+                        </div>
+                        <div class="status-item highlight">
+                            <div class="status-label">当前步态</div>
+                            <div class="status-value" id="sGait">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">充电状态</div>
+                            <div class="status-value" id="sCharge">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">使用模式</div>
+                            <div class="status-value" id="sUsageMode">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">硬急停 HES</div>
+                            <div class="status-value" id="sHES">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">前进方向</div>
+                            <div class="status-value" id="sDirection">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">避障 OOA</div>
+                            <div class="status-value" id="sOOA">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">电源管理</div>
+                            <div class="status-value" id="sPower">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">休眠状态</div>
+                            <div class="status-value" id="sSleep">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">设备版本</div>
+                            <div class="status-value" id="sVersion">--</div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- 运控状态 -->
+                <div class="status-section">
+                    <div class="status-section-title motion">📊 运控状态</div>
+                    <div class="status-grid three-col">
+                        <div class="status-item">
+                            <div class="status-label">Roll</div>
+                            <div class="status-value" id="sRoll">-- rad</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Pitch</div>
+                            <div class="status-value" id="sPitch">-- rad</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Yaw</div>
+                            <div class="status-value" id="sYaw">-- rad</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">角速度 ωZ</div>
+                            <div class="status-value" id="sOmegaZ">-- rad/s</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">线速度 X</div>
+                            <div class="status-value" id="sLinearX">-- m/s</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">线速度 Y</div>
+                            <div class="status-value" id="sLinearY">-- m/s</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">机身高度</div>
+                            <div class="status-value" id="sHeight">-- m</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">续航里程</div>
+                            <div class="status-value" id="sRemainMile">-- km</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 电池状态 -->
+                <div class="status-section">
+                    <div class="status-section-title battery">🔋 电池状态</div>
+                    <div style="margin-bottom:8px;">
+                        <div
+                            style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-bottom:3px;">
+                            <span>左电池</span><span id="sBatLevelL">--%</span>
+                        </div>
+                        <div class="battery-bar-wrap">
+                            <div class="battery-bar" id="sBatBarL" style="width:0%"></div>
+                        </div>
+                        <div
+                            style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:2px;">
+                            <span>电压:<b id="sBatVoltL">--</b>V</span>
+                            <span>温度:<b id="sBatTempL">--</b>℃</span>
+                            <span id="sBatChargeL">未充电</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div
+                            style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-bottom:3px;">
+                            <span>右电池</span><span id="sBatLevelR">--%</span>
+                        </div>
+                        <div class="battery-bar-wrap">
+                            <div class="battery-bar" id="sBatBarR" style="width:0%"></div>
+                        </div>
+                        <div
+                            style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:2px;">
+                            <span>电压:<b id="sBatVoltR">--</b>V</span>
+                            <span>温度:<b id="sBatTempR">--</b>℃</span>
+                            <span id="sBatChargeR">未充电</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GPS定位 -->
+                <div class="status-section">
+                    <div class="status-section-title gps">🌍 GPS 定位</div>
+                    <div class="status-grid three-col">
+                        <div class="status-item">
+                            <div class="status-label">纬度</div>
+                            <div class="status-value" id="sLat">--°</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">经度</div>
+                            <div class="status-value" id="sLon">--°</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">海拔</div>
+                            <div class="status-value" id="sAlt">-- m</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">速度</div>
+                            <div class="status-value" id="sGpsSpeed">-- km/h</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">航向</div>
+                            <div class="status-value" id="sCourse">--°</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">定位卫星</div>
+                            <div class="status-value" id="sNumSat">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CPU状态 -->
+                <div class="status-section">
+                    <div class="status-section-title cpu">🖥️ CPU 状态</div>
+                    <div class="status-grid three-col">
+                        <div class="status-item">
+                            <div class="status-label">AOS 温度</div>
+                            <div class="status-value" id="sCpuAosTemp">--℃</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">AOS 小核A55</div>
+                            <div class="status-value" id="sCpuAosA55">--%</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">AOS 大核A76</div>
+                            <div class="status-value" id="sCpuAosA76">--%</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">NOS 温度</div>
+                            <div class="status-value" id="sCpuNosTemp">--℃</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">NOS 小核A55</div>
+                            <div class="status-value" id="sCpuNosA55">--%</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">NOS 大核A76</div>
+                            <div class="status-value" id="sCpuNosA76">--%</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">GOS 温度</div>
+                            <div class="status-value" id="sCpuGosTemp">--℃</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">GOS 小核A55</div>
+                            <div class="status-value" id="sCpuGosA55">--%</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">GOS 大核A76</div>
+                            <div class="status-value" id="sCpuGosA76">--%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 异常状态 -->
+                <div class="status-section">
+                    <div class="status-section-title error">⚠️ 异常状态</div>
+                    <div id="sErrorContainer">
+                        <div class="no-error">系统正常，无异常</div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- 运动控制面板 -->
@@ -439,10 +776,11 @@
                 <div class="panel-title">运动控制</div>
 
                 <div class="control-section">
-                    <div class="control-section-title">运动模式</div>
-                    <div class="button-group two-col">
-                        <button class="btn active" data-mode="standard">标准模式</button>
-                        <button class="btn" data-mode="agile">敏捷模式</button>
+                    <div class="control-section-title">使用模式</div>
+                    <div class="button-group">
+                        <button class="btn active" data-usage-mode="0">常规</button>
+                        <button class="btn" data-usage-mode="1">导航</button>
+                        <button class="btn" data-usage-mode="2">辅助</button>
                     </div>
                 </div>
 
@@ -458,9 +796,10 @@
                 <div class="control-section">
                     <div class="control-section-title">步态选择</div>
                     <div class="button-group">
-                        <button class="btn active" data-gait="0x1001">基础</button>
-                        <button class="btn" data-gait="0x1002">高台</button>
-                        <button class="btn" data-gait="0x1003">楼梯</button>
+                        <button class="btn active" data-gait="1">基础</button>
+                        <button class="btn" data-gait="12">平地(敏捷)</button>
+                        <button class="btn" data-gait="13">楼梯(敏捷)</button>
+                        <button class="btn" data-gait="14">楼梯(标准)</button>
                     </div>
                 </div>
 
@@ -475,7 +814,8 @@
                         </div>
                     </div>
                     <div style="text-align: center; font-size: 12px; color: #666;">
-                        X: <span id="joystickX">0.00</span> | Y: <span id="joystickY">0.00</span> | Yaw: <span id="joystickYaw">0.00</span>
+                        X: <span id="joystickX">0.00</span> | Y: <span id="joystickY">0.00</span> | Yaw: <span
+                            id="joystickYaw">0.00</span>
                     </div>
                 </div>
 
@@ -744,8 +1084,10 @@
                     this.m20Connected = false;
                     this.updateConnectionStatus(false);
                     logger.info(data.message);
-                } else if (data.type === 'status') {
-                    this.updateStatus(data.payload);
+                } else if (data.type === 'robot_status') {
+                    this.handleRobotStatus(data);
+                } else if (data.type === 'command_response') {
+                    logger.recv(`命令响应 [Type:${data.commandType} Cmd:${data.command}]: ${JSON.stringify(data.data)}`);
                 } else if (data.type === 'error') {
                     logger.error(data.message);
                 } else {
@@ -753,28 +1095,172 @@
                 }
             }
 
-            updateStatus(status) {
-                if (status.connection !== undefined) {
-                    document.getElementById('statusConnection').textContent = status.connection ? '在线' : '离线';
-                    document.getElementById('statusConnection').className = 'status-value ' + (status.connection ? 'online' : 'offline');
+            /** 处理机器人主动上报状态 */
+            handleRobotStatus(msg) {
+                const { category, data } = msg;
+                switch (category) {
+                    case 'basic_status': this.updateBasicStatus(data); break;
+                    case 'motion_status': this.updateMotionStatus(data); break;
+                    case 'device_status': this.updateDeviceStatus(data); break;
+                    case 'error_status': this.updateErrorStatus(data); break;
+                    default: break;
                 }
-                if (status.battery !== undefined) {
-                    document.getElementById('statusBattery').textContent = status.battery + '%';
+            }
+
+            /** Helper: 设置元素文本并闪烁 */
+            _set(id, text) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (el.textContent !== text) {
+                    el.textContent = text;
+                    el.classList.remove('flash');
+                    void el.offsetWidth; // force reflow
+                    el.classList.add('flash');
                 }
-                if (status.motion !== undefined) {
-                    document.getElementById('statusMotion').textContent = status.motion;
+            }
+
+            /** 基础状态 (Command:6) */
+            updateBasicStatus(d) {
+                this._set('sMotionState', d.motionStateLabel);
+                this._set('sGait', d.gaitLabel);
+                this._set('sCharge', d.chargeLabel);
+                this._set('sUsageMode', d.usageModeLabel);
+                this._set('sDirection', d.directionLabel);
+                this._set('sOOA', d.ooaLabel);
+                this._set('sPower', d.powerLabel);
+                this._set('sSleep', d.sleepLabel);
+                this._set('sVersion', d.version);
+                // HES 特殊颜色
+                const hesEl = document.getElementById('sHES');
+                if (hesEl) {
+                    hesEl.textContent = d.hesLabel;
+                    hesEl.className = 'status-value' + (d.hes === 1 ? ' offline' : ' online');
+                    hesEl.parentElement.className = 'status-item' + (d.hes === 1 ? ' danger' : ' ok');
                 }
-                if (status.posX !== undefined) {
-                    document.getElementById('statusPosX').textContent = status.posX.toFixed(2) + 'm';
+
+                // 同步控制面板按钮高亮
+                // 1. 同步使用模式 (Mode: 0=常规, 1=导航, 2=辅助)
+                if (d.controlUsageMode != null) {
+                    document.querySelectorAll('[data-usage-mode]').forEach(b => b.classList.remove('active'));
+                    const modeBtn = document.querySelector(`[data-usage-mode="${d.controlUsageMode}"]`);
+                    if (modeBtn) modeBtn.classList.add('active');
                 }
-                if (status.posY !== undefined) {
-                    document.getElementById('statusPosY').textContent = status.posY.toFixed(2) + 'm';
+
+                // 2. 同步运动状态 (MotionState: 1=stand, 4=down, 6=walk)
+                if (d.motionState != null) {
+                    let actionStr = '';
+                    if (d.motionState === 1) actionStr = 'stand';
+                    else if (d.motionState === 4) actionStr = 'down';
+                    else if (d.motionState === 6) actionStr = 'walk';
+
+                    document.querySelectorAll('[data-action]').forEach(b => b.classList.remove('active'));
+                    if (actionStr) {
+                        const actionBtn = document.querySelector(`[data-action="${actionStr}"]`);
+                        if (actionBtn) actionBtn.classList.add('active');
+                    }
                 }
-                if (status.navStatus !== undefined) {
-                    document.getElementById('statusNav').textContent = status.navStatus;
+
+                // 3. 同步步态 (Gait: 1=基础, 12=平地敏捷, 13=楼梯敏捷, 14=楼梯标准)
+                if (d.gait != null) {
+                    document.querySelectorAll('[data-gait]').forEach(b => b.classList.remove('active'));
+                    const gaitBtn = document.querySelector(`[data-gait="${d.gait}"]`);
+                    if (gaitBtn) gaitBtn.classList.add('active');
                 }
-                if (status.temp !== undefined) {
-                    document.getElementById('statusTemp').textContent = status.temp.toFixed(1) + '°C';
+            }
+
+            /** 运控状态 (Command:4) */
+            updateMotionStatus(d) {
+                const f2 = (v) => v != null ? v.toFixed(2) : '--';
+                this._set('sRoll', f2(d.roll) + ' rad');
+                this._set('sPitch', f2(d.pitch) + ' rad');
+                this._set('sYaw', f2(d.yaw) + ' rad');
+                this._set('sOmegaZ', f2(d.omegaZ) + ' rad/s');
+                this._set('sLinearX', f2(d.linearX) + ' m/s');
+                this._set('sLinearY', f2(d.linearY) + ' m/s');
+                this._set('sHeight', f2(d.height) + ' m');
+                this._set('sRemainMile', d.remainMile != null ? d.remainMile.toFixed(1) + ' km' : '-- km');
+            }
+
+            /** 设备状态 (Command:5) */
+            updateDeviceStatus(d) {
+                // 电池
+                if (d.battery) {
+                    this._updateBattery('L', d.battery.levelLeft, d.battery.voltageLeft, d.battery.tempLeft, d.battery.chargeLeft);
+                    this._updateBattery('R', d.battery.levelRight, d.battery.voltageRight, d.battery.tempRight, d.battery.chargeRight);
+                }
+                // GPS
+                if (d.gps) {
+                    const g = d.gps;
+                    this._set('sLat', g.latitude != null ? g.latitude.toFixed(6) + '°' : '--°');
+                    this._set('sLon', g.longitude != null ? g.longitude.toFixed(6) + '°' : '--°');
+                    this._set('sAlt', g.altitude != null ? g.altitude.toFixed(1) + ' m' : '-- m');
+                    this._set('sGpsSpeed', g.speed != null ? g.speed.toFixed(1) + ' km/h' : '-- km/h');
+                    this._set('sCourse', g.course != null ? g.course.toFixed(1) + '°' : '--°');
+                    this._set('sNumSat', g.numSatellites != null ? '' + g.numSatellites : '--');
+                }
+                // CPU
+                if (d.cpu) {
+                    const fmtCpu = (obj, prefix) => {
+                        this._set('sCpu' + prefix + 'Temp', obj.Temperature != null ? obj.Temperature.toFixed(1) + '℃' : '--℃');
+                        this._set('sCpu' + prefix + 'A55', obj.FrequencyInt != null ? obj.FrequencyInt.toFixed(1) + '%' : '--%');
+                        this._set('sCpu' + prefix + 'A76', obj.FrequencyApp != null ? obj.FrequencyApp.toFixed(1) + '%' : '--%');
+                    };
+                    fmtCpu(d.cpu.aos, 'Aos');
+                    fmtCpu(d.cpu.nos, 'Nos');
+                    fmtCpu(d.cpu.gos, 'Gos');
+                }
+
+                // 同步灯光控制按钮状态
+                if (d.led) {
+                    if (d.led.front != null) {
+                        lightFrontOn = (d.led.front === 1);
+                        const btnF = document.getElementById('lightFront');
+                        if (btnF) {
+                            btnF.textContent = `前灯 ${lightFrontOn ? 'ON' : 'OFF'}`;
+                            if (lightFrontOn) btnF.classList.add('active');
+                            else btnF.classList.remove('active');
+                        }
+                    }
+                    if (d.led.back != null) {
+                        lightRearOn = (d.led.back === 1);
+                        const btnR = document.getElementById('lightRear');
+                        if (btnR) {
+                            btnR.textContent = `后灯 ${lightRearOn ? 'ON' : 'OFF'}`;
+                            if (lightRearOn) btnR.classList.add('active');
+                            else btnR.classList.remove('active');
+                        }
+                    }
+                }
+            }
+
+            /** 更新单侧电池显示 */
+            _updateBattery(side, level, voltage, temp, charging) {
+                const lv = level != null ? Math.round(level) : null;
+                this._set('sBatLevel' + side, lv != null ? lv + '%' : '--%');
+                this._set('sBatVolt' + side, voltage != null ? voltage.toFixed(1) : '--');
+                this._set('sBatTemp' + side, temp != null ? temp.toFixed(1) : '--');
+                const chargeEl = document.getElementById('sBatCharge' + side);
+                if (chargeEl) {
+                    chargeEl.textContent = charging ? '⚡ 充电中' : '未充电';
+                    chargeEl.style.color = charging ? '#10b981' : '#999';
+                }
+                const bar = document.getElementById('sBatBar' + side);
+                if (bar && lv != null) {
+                    bar.style.width = lv + '%';
+                    bar.className = 'battery-bar' + (lv <= 20 ? ' low' : lv <= 50 ? ' mid' : '');
+                }
+            }
+
+            /** 异常状态 (Command:3) */
+            updateErrorStatus(d) {
+                const container = document.getElementById('sErrorContainer');
+                if (!container) return;
+                if (!d.hasError) {
+                    container.innerHTML = '<div class="no-error">系统正常，无异常</div>';
+                } else {
+                    container.innerHTML = '<div class="error-list">' +
+                        d.errors.map(e => `<div class="error-item">错误码: 0x${e.errorCode?.toString(16)?.toUpperCase() || '????'} | 部件: ${e.component ?? '--'}</div>`).join('') +
+                        '</div>';
                 }
             }
 
@@ -901,8 +1387,51 @@
 
         const joystick = new Joystick('joystick');
 
+        // 摇杆轴控制 - 协议1.2.5要求20Hz发送频率
+        let axisTimer = null;
+        const AXIS_SEND_INTERVAL = 50; // 20Hz = 50ms
+
+        function startAxisSending() {
+            if (axisTimer) return;
+            axisTimer = setInterval(() => {
+                if (!joystick.isActive) return;
+                const msg = {
+                    type: 'axis_control',
+                    axes: {
+                        X: parseFloat(joystick.x),
+                        Y: parseFloat(joystick.y),
+                        Z: 0.0,
+                        Roll: 0.0,
+                        Pitch: 0.0,
+                        Yaw: parseFloat(joystick.x) * 0.5 // X偏移同时轻微转向
+                    }
+                };
+                connManager.send(msg);
+            }, AXIS_SEND_INTERVAL);
+        }
+
+        function stopAxisSending() {
+            if (axisTimer) {
+                clearInterval(axisTimer);
+                axisTimer = null;
+            }
+            // 释放时发送零值停止运动
+            const stopMsg = {
+                type: 'axis_control',
+                axes: { X: 0, Y: 0, Z: 0, Roll: 0, Pitch: 0, Yaw: 0 }
+            };
+            connManager.send(stopMsg);
+        }
+
+        // 监听摇杆激活/释放
+        const joystickEl = document.getElementById('joystick');
+        joystickEl.addEventListener('mousedown', startAxisSending);
+        joystickEl.addEventListener('touchstart', startAxisSending);
+        document.addEventListener('mouseup', () => { if (axisTimer) stopAxisSending(); });
+        document.addEventListener('touchend', () => { if (axisTimer) stopAxisSending(); });
+
         // 连接M20按钮
-        document.getElementById('connectM20Btn').addEventListener('click', function() {
+        document.getElementById('connectM20Btn').addEventListener('click', function () {
             if (connManager.isConnected) {
                 const m20IP = document.getElementById('m20IP').value || '10.21.31.103';
                 const m20Port = document.getElementById('m20Port').value || '30001';
@@ -914,23 +1443,30 @@
         });
 
         // 页面加载时自动连接后端
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             setTimeout(() => {
                 connManager.connect('ws://localhost:8080');
             }, 500);
         });
 
-        // 按钮事件处理
-        document.querySelectorAll('[data-mode]').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+        // 使用模式切换
+        document.querySelectorAll('[data-usage-mode]').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('[data-usage-mode]').forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
-                logger.info(`切换到${this.textContent}模式`);
+                const mode = parseInt(this.dataset.usageMode);
+                const msg = { type: 'usage_mode', mode: mode };
+                if (connManager.send(msg)) {
+                    logger.send(`使用模式切换: ${this.textContent}`);
+                } else {
+                    logger.error('未连接到服务器');
+                }
             });
         });
 
+        // 运动状态控制
         document.querySelectorAll('[data-action]').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function () {
                 document.querySelectorAll('[data-action]').forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
                 const action = this.dataset.action;
@@ -946,16 +1482,17 @@
             });
         });
 
+        // 步态切换
         document.querySelectorAll('[data-gait]').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function () {
                 document.querySelectorAll('[data-gait]').forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
                 const msg = {
                     type: 'gait_switch',
-                    gait: this.dataset.gait
+                    gait: parseInt(this.dataset.gait)
                 };
                 if (connManager.send(msg)) {
-                    logger.send(`步态切换: ${this.textContent} (${this.dataset.gait})`);
+                    logger.send(`步态切换: ${this.textContent} (GaitParam=${this.dataset.gait})`);
                 } else {
                     logger.error('未连接到服务器');
                 }
@@ -966,7 +1503,7 @@
         let lightFrontOn = false;
         let lightRearOn = false;
 
-        document.getElementById('lightFront').addEventListener('click', function() {
+        document.getElementById('lightFront').addEventListener('click', function () {
             lightFrontOn = !lightFrontOn;
             this.textContent = `前灯 ${lightFrontOn ? 'ON' : 'OFF'}`;
             this.classList.toggle('active');
@@ -982,7 +1519,7 @@
             }
         });
 
-        document.getElementById('lightRear').addEventListener('click', function() {
+        document.getElementById('lightRear').addEventListener('click', function () {
             lightRearOn = !lightRearOn;
             this.textContent = `后灯 ${lightRearOn ? 'ON' : 'OFF'}`;
             this.classList.toggle('active');
@@ -999,7 +1536,7 @@
         });
 
         // 导航控制
-        document.getElementById('navStart').addEventListener('click', function() {
+        document.getElementById('navStart').addEventListener('click', function () {
             const pointID = document.getElementById('navPointID').value || '0';
             const pointType = document.getElementById('navPointType').value;
             const x = document.getElementById('navTargetX').value;
@@ -1038,7 +1575,7 @@
             }
         });
 
-        document.getElementById('navCancel').addEventListener('click', function() {
+        document.getElementById('navCancel').addEventListener('click', function () {
             const msg = { type: 'nav_cancel' };
             if (connManager.send(msg)) {
                 logger.send('取消导航任务');
@@ -1047,7 +1584,7 @@
             }
         });
 
-        document.getElementById('initLocalize').addEventListener('click', function() {
+        document.getElementById('initLocalize').addEventListener('click', function () {
             const x = document.getElementById('initX').value || '0';
             const y = document.getElementById('initY').value || '0';
             const yaw = document.getElementById('initYaw').value || '0';
@@ -1066,7 +1603,7 @@
             }
         });
 
-        document.getElementById('chargeStart').addEventListener('click', function() {
+        document.getElementById('chargeStart').addEventListener('click', function () {
             const msg = { type: 'charge_start' };
             if (connManager.send(msg)) {
                 logger.send('开始自主充电');
@@ -1075,7 +1612,7 @@
             }
         });
 
-        document.getElementById('chargeStop').addEventListener('click', function() {
+        document.getElementById('chargeStop').addEventListener('click', function () {
             const msg = { type: 'charge_stop' };
             if (connManager.send(msg)) {
                 logger.send('停止自主充电');
@@ -1084,22 +1621,9 @@
             }
         });
 
-        // 模拟连接状态更新
-        function updateStatus() {
-            const statuses = ['离线', '在线'];
-            const motions = ['待命', '站立', '行走', '趴下'];
-            const navs = ['空闲', '导航中', '已到达'];
-
-            setInterval(() => {
-                document.getElementById('statusBattery').textContent = (Math.random() * 40 + 60).toFixed(0) + '%';
-                document.getElementById('statusTemp').textContent = (Math.random() * 10 + 35).toFixed(1) + '°C';
-                document.getElementById('statusPosX').textContent = (Math.random() * 10 - 5).toFixed(2) + 'm';
-                document.getElementById('statusPosY').textContent = (Math.random() * 10 - 5).toFixed(2) + 'm';
-            }, 2000);
-        }
-
-        updateStatus();
+        // 状态数据由机器人主动上报，无需模拟
         logger.info('前端界面已加载完成');
     </script>
 </body>
+
 </html>
