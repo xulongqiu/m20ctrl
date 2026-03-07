@@ -203,12 +203,28 @@ class ControllerServer {
                     this.handleInitLocalize(data.payload);
                     break;
 
-                case 'charge_start':
-                    this.handleChargeControl(true);
+                case 'get_map_position':
+                    this.handleGetMapPosition();
                     break;
 
-                case 'charge_stop':
-                    this.handleChargeControl(false);
+                case 'get_nav_perception':
+                    this.handleGetNavPerception();
+                    break;
+
+                case 'query_nav_status':
+                    this.handleQueryNavTaskStatus();
+                    break;
+
+                case 'save_location':
+                    this.handleSaveLocation(ws, data.payload);
+                    break;
+
+                case 'load_locations':
+                    this.handleLoadLocations(ws);
+                    break;
+
+                case 'clear_locations':
+                    this.handleClearLocations(ws);
                     break;
 
                 default:
@@ -365,20 +381,125 @@ class ControllerServer {
     }
 
     /**
-     * 处理充电控制
+     * 处理获取地图位置
      */
-    handleChargeControl(start) {
+    handleGetMapPosition() {
         if (!this.m20Client.isConnected) {
-            this.broadcastToClients({
-                type: 'error',
-                message: '未连接到M20机器狗'
-            });
+            this.broadcastToClients({ type: 'error', message: '未连接到M20机器狗' });
             return;
         }
-
-        const buffer = this.protocol.buildChargeControl(start);
+        const buffer = this.protocol.buildGetMapPosition();
         this.m20Client.send(buffer);
-        console.log(`[Server] 已发送充电控制命令: ${start ? '开始' : '停止'}`);
+        console.log(`[Server] 已发送获取地图位置请求`);
+    }
+
+    /**
+     * 处理获取导航感知状态
+     */
+    handleGetNavPerception() {
+        if (!this.m20Client.isConnected) {
+            this.broadcastToClients({ type: 'error', message: '未连接到M20机器狗' });
+            return;
+        }
+        const buffer = this.protocol.buildGetNavPerception();
+        this.m20Client.send(buffer);
+        console.log(`[Server] 已发送获取导航感知状态请求`);
+    }
+
+    /**
+     * 处理查询导航任务状态
+     */
+    handleQueryNavTaskStatus() {
+        if (!this.m20Client.isConnected) {
+            this.broadcastToClients({ type: 'error', message: '未连接到M20机器狗' });
+            return;
+        }
+        const buffer = this.protocol.buildQueryNavTaskStatus();
+        this.m20Client.send(buffer);
+        console.log(`[Server] 已发送查询导航任务状态请求`);
+    }
+
+    /**
+     * 处理保存位置点
+     */
+    handleSaveLocation(ws, location) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '..', 'data', 'locations.json');
+        const dirPath = path.dirname(filePath);
+
+        // 确保目录存在
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        // 读取现有数据
+        let locations = [];
+        try {
+            if (fs.existsSync(filePath)) {
+                locations = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            }
+        } catch (e) {
+            console.error(`[Server] 读取位置文件失败: ${e.message}`);
+        }
+
+        // 添加新位置
+        const newLocation = {
+            id: Date.now(),
+            name: location.name || '未命名',
+            mapId: location.mapId || 0,
+            posX: location.posX || 0,
+            posY: location.posY || 0,
+            posZ: location.posZ || 0,
+            yaw: location.yaw || 0,
+            createdAt: new Date().toISOString()
+        };
+        locations.push(newLocation);
+
+        // 保存
+        fs.writeFileSync(filePath, JSON.stringify(locations, null, 2), 'utf-8');
+        console.log(`[Server] 已保存位置点: ${newLocation.name}`);
+
+        // 广播更新后的列表
+        this.broadcastToClients({ type: 'locations_updated', data: locations });
+    }
+
+    /**
+     * 处理加载位置点
+     */
+    handleLoadLocations(ws) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '..', 'data', 'locations.json');
+
+        let locations = [];
+        try {
+            if (fs.existsSync(filePath)) {
+                locations = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            }
+        } catch (e) {
+            console.error(`[Server] 读取位置文件失败: ${e.message}`);
+        }
+
+        ws.send(JSON.stringify({ type: 'locations_updated', data: locations }));
+    }
+
+    /**
+     * 处理清空位置点
+     */
+    handleClearLocations(ws) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '..', 'data', 'locations.json');
+
+        try {
+            fs.writeFileSync(filePath, '[]', 'utf-8');
+        } catch (e) {
+            console.error(`[Server] 清空位置文件失败: ${e.message}`);
+        }
+
+        console.log(`[Server] 已清空所有位置点`);
+        this.broadcastToClients({ type: 'locations_updated', data: [] });
     }
 
     /**

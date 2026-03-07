@@ -238,7 +238,7 @@ class M20Protocol {
     buildNavTask(navTask) {
         const asdu = {
             PatrolDevice: {
-                Type: 1101,
+                Type: 1003,
                 Command: 1,
                 Time: this.generateCurrentTime(),
                 Items: navTask
@@ -253,8 +253,8 @@ class M20Protocol {
     buildNavCancel() {
         const asdu = {
             PatrolDevice: {
-                Type: 1101,
-                Command: 3,
+                Type: 1004,
+                Command: 1,
                 Time: this.generateCurrentTime(),
                 Items: {}
             }
@@ -263,19 +263,20 @@ class M20Protocol {
     }
 
     /**
-     * 构建初始化定位指令
-     * @param {Object} localize - 定位参数 {x, y, yaw}
+     * 构建初始化定位指令 (1.4.1)
+     * @param {Object} localize - 定位参数 {x, y, z, yaw}
      */
     buildInitLocalize(localize) {
         const asdu = {
             PatrolDevice: {
-                Type: 1101,
-                Command: 4,
+                Type: 2101,
+                Command: 1,
                 Time: this.generateCurrentTime(),
                 Items: {
-                    PosX: localize.x,
-                    PosY: localize.y,
-                    AngleYaw: localize.yaw
+                    PosX: localize.x || 0.0,
+                    PosY: localize.y || 0.0,
+                    PosZ: localize.z || 0.0,
+                    Yaw: localize.yaw || 0.0
                 }
             }
         };
@@ -283,18 +284,48 @@ class M20Protocol {
     }
 
     /**
-     * 构建充电控制指令
-     * @param {boolean} start - true开始，false停止
+     * 构建获取地图坐标系下位置信息请求 (1.4.2)
+     * 响应: {Location, PosX, PosY, PosZ, Roll, Pitch, Yaw}
      */
-    buildChargeControl(start) {
+    buildGetMapPosition() {
         const asdu = {
             PatrolDevice: {
-                Type: 1101,
-                Command: 5,
+                Type: 1007,
+                Command: 2,
                 Time: this.generateCurrentTime(),
-                Items: {
-                    Command: start ? 1 : 0
-                }
+                Items: {}
+            }
+        };
+        return this.buildAPDU(asdu);
+    }
+
+    /**
+     * 构建获取导航感知软件状态请求 (1.4.3)
+     * 响应: {Location, ObsState}
+     */
+    buildGetNavPerception() {
+        const asdu = {
+            PatrolDevice: {
+                Type: 2002,
+                Command: 1,
+                Time: this.generateCurrentTime(),
+                Items: {}
+            }
+        };
+        return this.buildAPDU(asdu);
+    }
+
+    /**
+     * 构建查询导航任务执行状态请求 (1.4.6)
+     * 响应: {Value, Status, ErrorCode}
+     */
+    buildQueryNavTaskStatus() {
+        const asdu = {
+            PatrolDevice: {
+                Type: 1007,
+                Command: 1,
+                Time: this.generateCurrentTime(),
+                Items: {}
             }
         };
         return this.buildAPDU(asdu);

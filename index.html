@@ -832,9 +832,24 @@
             <div class="panel">
                 <div class="panel-title">导航控制</div>
 
+                <!-- 导航状态展示 -->
+                <div class="control-section">
+                    <div class="control-section-title">导航状态
+                        <button class="btn" id="refreshNavStatus" style="float:right;padding:2px 10px;font-size:12px;">刷新</button>
+                    </div>
+                    <div class="status-grid three-col">
+                        <div class="status-item"><span class="status-label">地图X</span><span class="status-value" id="navPosX">--</span></div>
+                        <div class="status-item"><span class="status-label">地图Y</span><span class="status-value" id="navPosY">--</span></div>
+                        <div class="status-item"><span class="status-label">地图Yaw</span><span class="status-value" id="navPosYaw">--</span></div>
+                        <div class="status-item"><span class="status-label">定位状态</span><span class="status-value" id="navLocation">--</span></div>
+                        <div class="status-item"><span class="status-label">避障状态</span><span class="status-value" id="navObsState">--</span></div>
+                        <div class="status-item"><span class="status-label">任务状态</span><span class="status-value" id="navTaskStatus">--</span></div>
+                    </div>
+                </div>
+
                 <div class="control-section">
                     <div class="control-section-title">导航任务 - 目标点设置</div>
-                    <div class="input-row">
+                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <div class="input-group">
                             <label>目标点编号</label>
                             <input type="number" id="navPointID" placeholder="0" min="0" step="1">
@@ -847,8 +862,12 @@
                                 <option value="3">充电点</option>
                             </select>
                         </div>
+                        <div class="input-group">
+                            <label>底图编号</label>
+                            <input type="number" id="navMapID" placeholder="0" min="0" step="1">
+                        </div>
                     </div>
-                    <div class="input-row">
+                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <div class="input-group">
                             <label>目标X (m)</label>
                             <input type="number" id="navTargetX" placeholder="0.0" step="0.1">
@@ -857,16 +876,16 @@
                             <label>目标Y (m)</label>
                             <input type="number" id="navTargetY" placeholder="0.0" step="0.1">
                         </div>
-                    </div>
-                    <div class="input-group">
-                        <label>目标方向 (弧度)</label>
-                        <input type="number" id="navTargetYaw" placeholder="0" step="0.01">
+                        <div class="input-group">
+                            <label>目标方向 (弧度)</label>
+                            <input type="number" id="navTargetYaw" placeholder="0" step="0.01">
+                        </div>
                     </div>
                 </div>
 
                 <div class="control-section">
                     <div class="control-section-title">导航任务 - 路径属性</div>
-                    <div class="input-row">
+                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <div class="input-group">
                             <label>步态</label>
                             <select id="navGait">
@@ -882,8 +901,6 @@
                                 <option value="2">高速</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="input-row">
                         <div class="input-group">
                             <label>运动方式</label>
                             <select id="navManner">
@@ -891,6 +908,8 @@
                                 <option value="1">倒退行走</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <div class="input-group">
                             <label>导航方式</label>
                             <select id="navMode">
@@ -898,13 +917,14 @@
                                 <option value="1">自主导航</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="input-group">
-                        <label>停避障功能</label>
-                        <select id="navObsMode">
-                            <option value="0" selected>开启</option>
-                            <option value="1">关闭</option>
-                        </select>
+                        <div class="input-group">
+                            <label>停避障功能</label>
+                            <select id="navObsMode">
+                                <option value="0" selected>开启</option>
+                                <option value="1">关闭</option>
+                            </select>
+                        </div>
+                        <div class="input-group"></div>
                     </div>
                 </div>
 
@@ -913,11 +933,12 @@
                         <button class="btn success" id="navStart">开始导航</button>
                         <button class="btn danger" id="navCancel">取消任务</button>
                     </div>
+                    <div id="navFeedback" style="margin-top:6px;padding:6px 10px;border-radius:4px;display:none;font-size:13px;"></div>
                 </div>
 
                 <div class="control-section">
                     <div class="control-section-title">定位初始化</div>
-                    <div class="input-row">
+                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <div class="input-group">
                             <label>初始X (m)</label>
                             <input type="number" id="initX" placeholder="0.0" step="0.1">
@@ -926,20 +947,32 @@
                             <label>初始Y (m)</label>
                             <input type="number" id="initY" placeholder="0.0" step="0.1">
                         </div>
-                    </div>
-                    <div class="input-group">
-                        <label>初始方向 (°)</label>
-                        <input type="number" id="initYaw" placeholder="0" min="0" max="360" step="1">
+                        <div class="input-group">
+                            <label>初始方向 (°)</label>
+                            <input type="number" id="initYaw" placeholder="0" min="0" max="360" step="1">
+                        </div>
                     </div>
                     <button class="btn" id="initLocalize" style="width: 100%;">初始化定位</button>
                 </div>
 
+                <!-- 地点管理 -->
                 <div class="control-section">
-                    <div class="control-section-title">充电控制</div>
-                    <div class="button-group two-col">
-                        <button class="btn success" id="chargeStart">开始充电</button>
-                        <button class="btn danger" id="chargeStop">停止充电</button>
+                    <div class="control-section-title">地点管理</div>
+                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                        <div class="input-group">
+                            <label>地点名称</label>
+                            <input type="text" id="locName" placeholder="输入名称">
+                        </div>
+                        <div class="input-group">
+                            <label>底图编号</label>
+                            <input type="number" id="locMapId" placeholder="0" min="0" step="1">
+                        </div>
+                        <div class="input-group" style="display:flex;align-items:flex-end;">
+                            <button class="btn success" id="locSave" style="width:100%;">📍 记录当前位置</button>
+                        </div>
                     </div>
+                    <div id="locationList" style="max-height:180px;overflow-y:auto;margin-top:8px;border:1px solid #eee;border-radius:6px;"></div>
+                    <button class="btn danger" id="locClear" style="width:100%;margin-top:6px;font-size:12px;">清空所有地点</button>
                 </div>
             </div>
 
@@ -1088,6 +1121,9 @@
                     this.handleRobotStatus(data);
                 } else if (data.type === 'command_response') {
                     logger.recv(`命令响应 [Type:${data.commandType} Cmd:${data.command}]: ${JSON.stringify(data.data)}`);
+                    this.handleCommandResponse(data);
+                } else if (data.type === 'locations_updated') {
+                    this.renderLocationList(data.data);
                 } else if (data.type === 'error') {
                     logger.error(data.message);
                 } else {
@@ -1105,6 +1141,137 @@
                     case 'error_status': this.updateErrorStatus(data); break;
                     default: break;
                 }
+            }
+
+            /** 处理命令响应（导航反馈、状态查询结果） */
+            handleCommandResponse(msg) {
+                const { commandType, command, data } = msg;
+
+                // 导航任务响应 (Type:1003)
+                if (commandType === 1003 && command === 1) {
+                    const statusMap = {
+                        0: '空闲', 1: '退出充电桩中', 2: '导航预处理',
+                        3: '导航中', 4: '导航完成', 5: '进入充电桩中', 255: '暂停中'
+                    };
+                    const status = statusMap[data.Status] || `未知(${data.Status})`;
+                    const fb = document.getElementById('navFeedback');
+                    if (fb) {
+                        const isOk = data.ErrorCode === 0 || data.ErrorCode === 8960;
+                        fb.style.display = 'block';
+                        fb.textContent = `导航结果: ${status} (ErrorCode: ${data.ErrorCode})`;
+                        fb.style.background = isOk ? '#d4edda' : '#f8d7da';
+                        fb.style.color = isOk ? '#155724' : '#721c24';
+                        setTimeout(() => { fb.style.display = 'none'; }, 8000);
+                    }
+                    this._set('navTaskStatus', status);
+                    // 恢复按钮
+                    const btn = document.getElementById('navStart');
+                    if (btn) { btn.disabled = false; btn.textContent = '开始导航'; }
+                }
+
+                // 取消导航响应 (Type:1004)
+                if (commandType === 1004 && command === 1) {
+                    const fb = document.getElementById('navFeedback');
+                    if (fb) {
+                        const isOk = data.ErrorCode === 0;
+                        fb.style.display = 'block';
+                        fb.textContent = isOk ? '✅ 导航已取消' : `❌ 取消失败 (ErrorCode: ${data.ErrorCode})`;
+                        fb.style.background = isOk ? '#d4edda' : '#f8d7da';
+                        fb.style.color = isOk ? '#155724' : '#721c24';
+                        setTimeout(() => { fb.style.display = 'none'; }, 5000);
+                    }
+                    const btn = document.getElementById('navCancel');
+                    if (btn) { btn.disabled = false; btn.textContent = '取消任务'; }
+                }
+
+                // 地图位置响应 (Type:1007, Cmd:2)
+                if (commandType === 1007 && command === 2) {
+                    const f2 = (v) => v != null ? v.toFixed(2) : '--';
+                    this._set('navPosX', f2(data.PosX));
+                    this._set('navPosY', f2(data.PosY));
+                    this._set('navPosYaw', f2(data.Yaw));
+                    this._set('navLocation', data.Location === 0 ? '✅ 正常' : '⚠️ 丢失');
+                }
+
+                // 导航感知状态响应 (Type:2002, Cmd:1)
+                if (commandType === 2002 && command === 1) {
+                    this._set('navObsState', data.ObsState === 0 ? '无障碍' : '⚠️ 避障中');
+                    // Location 也可能在此响应中
+                    if (data.Location != null) {
+                        this._set('navLocation', data.Location === 0 ? '✅ 正常' : '⚠️ 丢失');
+                    }
+                }
+
+                // 导航任务状态查询响应 (Type:1007, Cmd:1)
+                if (commandType === 1007 && command === 1) {
+                    const statusMap = {
+                        0: '空闲', 1: '退出充电桩中', 2: '导航预处理',
+                        3: '导航中', 4: '导航完成', 5: '进入充电桩中', 255: '暂停中'
+                    };
+                    this._set('navTaskStatus', statusMap[data.Status] || `未知(${data.Status})`);
+                }
+
+                // 初始化定位响应 (Type:2101, Cmd:1)
+                if (commandType === 2101 && command === 1) {
+                    const fb = document.getElementById('navFeedback');
+                    if (fb) {
+                        const isOk = data.ErrorCode === 0;
+                        fb.style.display = 'block';
+                        fb.textContent = isOk ? '✅ 定位初始化成功' : `❌ 定位初始化失败 (ErrorCode: ${data.ErrorCode})`;
+                        fb.style.background = isOk ? '#d4edda' : '#f8d7da';
+                        fb.style.color = isOk ? '#155724' : '#721c24';
+                        setTimeout(() => { fb.style.display = 'none'; }, 5000);
+                    }
+                }
+            }
+
+            /** 渲染地点列表 */
+            renderLocationList(locations) {
+                const container = document.getElementById('locationList');
+                if (!container) return;
+
+                if (!locations || locations.length === 0) {
+                    container.innerHTML = '<div style="padding:12px;text-align:center;color:#999;font-size:13px;">暂无保存的地点</div>';
+                    return;
+                }
+
+                container.innerHTML = locations.map((loc, idx) => `
+                    <div class="loc-item" data-posx="${loc.posX}" data-posy="${loc.posY}" data-yaw="${loc.yaw || 0}" data-mapid="${loc.mapId || 0}"
+                         style="padding:8px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.15s;"
+                         onmouseover="this.style.background='#f0f7ff'" onmouseout="if(!this.classList.contains('selected'))this.style.background=''">
+                        <input type="checkbox" class="loc-task-check" data-idx="${idx}" checked title="勾选=任务点，不勾选=过渡点"
+                               style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+                        <div style="flex:1;min-width:0;">
+                            <strong style="font-size:13px;">${loc.name}</strong>
+                            <span style="font-size:11px;color:#888;margin-left:6px;">地图${loc.mapId || 0}</span>
+                        </div>
+                        <span style="font-size:11px;color:#666;flex-shrink:0;">(${loc.posX.toFixed(2)}, ${loc.posY.toFixed(2)})</span>
+                    </div>
+                `).join('');
+
+                // 阻止 checkbox 点击冒泡（避免触发行点击）
+                container.querySelectorAll('.loc-task-check').forEach(cb => {
+                    cb.addEventListener('click', e => e.stopPropagation());
+                });
+
+                // 点击行：填充坐标 + 根据 checkbox 设置点类型
+                container.querySelectorAll('.loc-item').forEach(item => {
+                    item.addEventListener('click', function () {
+                        document.getElementById('navTargetX').value = this.dataset.posx;
+                        document.getElementById('navTargetY').value = this.dataset.posy;
+                        document.getElementById('navTargetYaw').value = this.dataset.yaw;
+                        document.getElementById('navMapID').value = this.dataset.mapid;
+                        // 根据 checkbox 状态设置点类型
+                        const cb = this.querySelector('.loc-task-check');
+                        document.getElementById('navPointType').value = cb && cb.checked ? '1' : '0';
+                        const typeName = cb && cb.checked ? '任务点' : '过渡点';
+                        logger.info(`已填充: (${this.dataset.posx}, ${this.dataset.posy}) [${typeName}]`);
+                        // 高亮选中项
+                        container.querySelectorAll('.loc-item').forEach(i => { i.style.background = ''; i.classList.remove('selected'); });
+                        this.style.background = '#e3f2fd';
+                        this.classList.add('selected');
+                    });
+                });
             }
 
             /** Helper: 设置元素文本并闪烁 */
@@ -1535,9 +1702,10 @@
             }
         });
 
-        // 导航控制
+        // 导航控制 - 开始导航 (带反馈)
         document.getElementById('navStart').addEventListener('click', function () {
             const pointID = document.getElementById('navPointID').value || '0';
+            const mapID = document.getElementById('navMapID').value || '0';
             const pointType = document.getElementById('navPointType').value;
             const x = document.getElementById('navTargetX').value;
             const y = document.getElementById('navTargetY').value;
@@ -1553,6 +1721,7 @@
                     type: 'nav_task',
                     payload: {
                         Value: parseInt(pointID),
+                        MapID: parseInt(mapID),
                         PointInfo: parseInt(pointType),
                         PosX: parseFloat(x),
                         PosY: parseFloat(y),
@@ -1566,24 +1735,36 @@
                     }
                 };
                 if (connManager.send(msg)) {
-                    logger.send(`导航任务: ${JSON.stringify(msg.payload)}`);
+                    this.disabled = true;
+                    this.textContent = '导航中...';
+                    const btn = this;
+                    setTimeout(() => { btn.disabled = false; btn.textContent = '开始导航'; }, 3000);
+                    logger.send(`导航任务: 目标(${x}, ${y})`);
+                    showNavFeedback('导航任务已下发，等待报告...', 'info');
                 } else {
-                    logger.error('未连接到服务器');
+                    showNavFeedback('⚠️ 未连接到后端服务或机器狗', 'error');
                 }
             } else {
-                logger.error('请输入有效的目标坐标');
+                showNavFeedback('⚠️ 请输入有效的目标坐标', 'error');
             }
         });
 
+        // 取消导航 (带反馈)
         document.getElementById('navCancel').addEventListener('click', function () {
             const msg = { type: 'nav_cancel' };
             if (connManager.send(msg)) {
+                this.disabled = true;
+                this.textContent = '取消中...';
+                const btn = this;
+                setTimeout(() => { btn.disabled = false; btn.textContent = '取消任务'; }, 3000);
                 logger.send('取消导航任务');
+                showNavFeedback('取消请求已发送，等待反馈...', 'info');
             } else {
-                logger.error('未连接到服务器');
+                showNavFeedback('⚠️ 未连接到后端服务或机器狗', 'error');
             }
         });
 
+        // 初始化定位
         document.getElementById('initLocalize').addEventListener('click', function () {
             const x = document.getElementById('initX').value || '0';
             const y = document.getElementById('initY').value || '0';
@@ -1593,33 +1774,81 @@
                 payload: {
                     x: parseFloat(x),
                     y: parseFloat(y),
+                    z: 0.0,
                     yaw: parseFloat(yaw)
                 }
             };
             if (connManager.send(msg)) {
                 logger.send(`初始化定位: (${x}, ${y}), 方向${yaw}°`);
+                showNavFeedback('定位初始化指令已发送，等待反馈...', 'info');
             } else {
-                logger.error('未连接到服务器');
+                showNavFeedback('⚠️ 未连接到后端服务或机器狗', 'error');
             }
         });
 
-        document.getElementById('chargeStart').addEventListener('click', function () {
-            const msg = { type: 'charge_start' };
+        // 刷新导航状态
+        document.getElementById('refreshNavStatus').addEventListener('click', function () {
+            connManager.send({ type: 'get_map_position' });
+            connManager.send({ type: 'get_nav_perception' });
+            connManager.send({ type: 'query_nav_status' });
+            logger.send('刷新导航状态');
+        });
+
+        // 地点管理 - 记录当前位置
+        document.getElementById('locSave').addEventListener('click', function () {
+            const name = document.getElementById('locName').value || '未命名';
+            const mapId = parseInt(document.getElementById('locMapId').value || '0');
+            const posX = parseFloat(document.getElementById('navPosX').textContent) || 0;
+            const posY = parseFloat(document.getElementById('navPosY').textContent) || 0;
+            const yaw = parseFloat(document.getElementById('navPosYaw').textContent) || 0;
+
+            if (posX === 0 && posY === 0) {
+                showNavFeedback('⚠️ 请先点击导航状态的「刷新」按钮获取当前地图位置', 'error');
+                return;
+            }
+
+            const msg = {
+                type: 'save_location',
+                payload: { name, mapId, posX, posY, posZ: 0, yaw }
+            };
             if (connManager.send(msg)) {
-                logger.send('开始自主充电');
-            } else {
-                logger.error('未连接到服务器');
+                logger.send(`记录地点: ${name} (${posX}, ${posY})`);
+                document.getElementById('locName').value = '';
             }
         });
 
-        document.getElementById('chargeStop').addEventListener('click', function () {
-            const msg = { type: 'charge_stop' };
-            if (connManager.send(msg)) {
-                logger.send('停止自主充电');
-            } else {
-                logger.error('未连接到服务器');
+        // 地点管理 - 清空
+        document.getElementById('locClear').addEventListener('click', function () {
+            if (confirm('确定要清空所有保存的地点吗？')) {
+                connManager.send({ type: 'clear_locations' });
+                logger.send('清空所有地点');
             }
         });
+
+        // 连接成功后加载地点列表
+        const origHandleMsg = connManager.handleMessage.bind(connManager);
+        const origConnect = connManager.ws;
+
+        // 导航反馈 toast 函数
+        function showNavFeedback(text, type) {
+            const el = document.getElementById('navFeedback');
+            el.style.display = 'block';
+            el.textContent = text;
+            el.style.background = type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#cce5ff';
+            el.style.color = type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#004085';
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+
+        // 状态映射表
+        const NAV_STATUS_MAP = {
+            0: '空闲', 1: '退出充电桩中', 2: '导航预处理',
+            3: '导航中', 4: '导航完成', 5: '进入充电桩中', 255: '暂停中'
+        };
+
+        // 连接成功后加载地点
+        setTimeout(() => {
+            connManager.send({ type: 'load_locations' });
+        }, 2000);
 
         // 状态数据由机器人主动上报，无需模拟
         logger.info('前端界面已加载完成');
