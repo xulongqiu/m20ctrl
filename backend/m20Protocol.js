@@ -244,6 +244,7 @@ class M20Protocol {
                 Items: navTask
             }
         };
+        console.log(`[Protocol] 构建导航任务指令:`, asdu);
         return this.buildAPDU(asdu);
     }
 

@@ -302,7 +302,7 @@
       "PosZ": 0.0,
       "AngleYaw": 0.0,
       "PointInfo": 1,
-      "Gait": "0x3002",
+      "Gait": 12290,
       "Speed": 0,
       "Manner": 0,
       "NavMode": 0,

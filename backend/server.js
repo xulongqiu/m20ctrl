@@ -242,12 +242,19 @@ class ControllerServer {
         const newHost = data.host || this.m20Host;
         const newPort = data.port || this.m20Port;
 
-        if (newHost !== this.m20Host || newPort !== this.m20Port) {
-            console.log(`[Server] M20配置已更新: ${newHost}:${newPort}`);
-            this.m20Host = newHost;
-            this.m20Port = newPort;
-            this.initM20Client();
+        console.log(`[Server] 收到M20连接请求: ${newHost}:${newPort}`);
+        
+        // 即使配置相同，若用户手工点击也应当尝试重连
+        this.m20Host = newHost;
+        this.m20Port = newPort;
+
+        // 如果已经有客户端，先断开
+        if (this.m20Client) {
+            this.m20Client.disconnect();
         }
+
+        // 重新初始化并连接
+        this.initM20Client();
     }
 
     /**
