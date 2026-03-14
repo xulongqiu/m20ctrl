@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M20机器狗上位机控制</title>
+    <script src="jsmpeg.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -597,6 +598,109 @@
         .log-content::-webkit-scrollbar-thumb:hover {
             background: #777;
         }
+
+        /* 悬浮窗口样式 */
+        .floating-window {
+            position: fixed;
+            width: 480px;
+            height: 360px; /* 480 * 3/4 */
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            z-index: 2000;
+            overflow: hidden;
+            display: none;
+            border: 1px solid #e2e8f0;
+            resize: both; /* 允许用户调整大小 */
+            min-width: 320px;
+            min-height: 240px;
+        }
+
+        .fw-header {
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+            user-select: none;
+        }
+
+        .fw-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .fw-close {
+            cursor: pointer;
+            font-size: 18px;
+            color: #999;
+            line-height: 1;
+        }
+
+        .fw-close:hover {
+            color: #ef4444;
+        }
+
+        .fw-content {
+            position: relative;
+            background: #000;
+            overflow: hidden;
+            width: 100%;
+            height: calc(100% - 35px); /* Adjust height based on header height */
+        }
+
+        .fw-content canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .fw-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 14px;
+            text-align: center;
+            width: 80%;
+            pointer-events: none;
+        }
+
+        /* 调整手柄 */
+        .fw-resizer {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 15px;
+            height: 15px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 50%, #667eea 50%);
+            z-index: 10;
+        }
+
+        .camera-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .ffmpeg-warning {
+            grid-column: 1 / -1;
+            padding: 8px;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-radius: 6px;
+            color: #9a3412;
+            font-size: 11px;
+            display: none;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 
@@ -833,6 +937,7 @@
             <div class="panel">
                 <div class="panel-title">运动控制</div>
 
+                <!-- 1. 使用模式 -->
                 <div class="control-section">
                     <div class="control-section-title">使用模式</div>
                     <div class="button-group">
@@ -842,6 +947,7 @@
                     </div>
                 </div>
 
+                <!-- 2. 运动状态 -->
                 <div class="control-section">
                     <div class="control-section-title">运动状态</div>
                     <div class="button-group">
@@ -851,6 +957,7 @@
                     </div>
                 </div>
 
+                <!-- 3. 步态选择 -->
                 <div class="control-section">
                     <div class="control-section-title">步态选择</div>
                     <div class="button-group">
@@ -861,6 +968,28 @@
                     </div>
                 </div>
 
+                <!-- 4. 其他控制 (灯光等) -->
+                <div class="control-section">
+                    <div class="control-section-title">其他控制</div>
+                    <div class="button-group two-col">
+                        <button class="btn" id="lightFront">前灯 OFF</button>
+                        <button class="btn" id="lightRear">后灯 OFF</button>
+                    </div>
+                </div>
+
+                <!-- 5. 摄像头控制 -->
+                <div class="control-section">
+                    <div class="control-section-title">摄像头预览</div>
+                    <div class="ffmpeg-warning" id="ffmpegWarning">
+                        ⚠️ 警告: 后端未检测到 ffmpeg，视频预览无法使用。
+                    </div>
+                    <div class="camera-controls">
+                        <button class="btn" id="btnFrontCam">📹 前广角相机</button>
+                        <button class="btn" id="btnRearCam">📹 后广角相机</button>
+                    </div>
+                </div>
+
+                <!-- 6. 虚拟摇杆 -->
                 <div class="control-section">
                     <div class="control-section-title">虚拟摇杆</div>
                     <div class="joystick-container">
@@ -870,10 +999,8 @@
                             <div class="joystick-ring" style="width: 33%; height: 33%;" data-label="30%"></div>
                             <div class="joystick-ring" style="width: 66%; height: 66%;" data-label="60%"></div>
                             <div class="joystick-ring" style="width: 100%; height: 100%;" data-label="100%"></div>
-                            
                             <div class="joystick-thumb"></div>
                             <div class="joystick-center"></div>
-                            
                             <div class="joystick-label forward">前 (X+)</div>
                             <div class="joystick-label backward">后 (X-)</div>
                             <div class="joystick-label left">左 (Y-)</div>
@@ -883,14 +1010,6 @@
                     <div style="text-align: center; font-size: 12px; color: #666;">
                         X: <span id="joystickX">0.00</span> | Y: <span id="joystickY">0.00</span> | Yaw: <span
                             id="joystickYaw">0.00</span>
-                    </div>
-                </div>
-
-                <div class="control-section">
-                    <div class="control-section-title">其他控制</div>
-                    <div class="button-group two-col">
-                        <button class="btn" id="lightFront">前灯 OFF</button>
-                        <button class="btn" id="lightRear">后灯 OFF</button>
                     </div>
                 </div>
             </div>
@@ -1068,6 +1187,29 @@
         </div>
     </div>
 
+    <!-- 悬浮窗模板 -->
+    <div id="camFront" class="floating-window" style="top: 100px; left: 100px;">
+        <div class="fw-header" id="camFrontHeader">
+            <span class="fw-title">📸 前广角相机预览</span>
+            <span class="fw-close" onclick="camFront.hide()">&times;</span>
+        </div>
+        <div class="fw-content">
+            <div class="fw-loading">正在拉取视频流...</div>
+            <canvas id="canvasFront"></canvas>
+        </div>
+    </div>
+
+    <div id="camRear" class="floating-window" style="top: 150px; left: 150px;">
+        <div class="fw-header" id="camRearHeader">
+            <span class="fw-title">📸 后广角相机预览</span>
+            <span class="fw-close" onclick="camRear.hide()">&times;</span>
+        </div>
+        <div class="fw-content">
+            <div class="fw-loading">正在拉取视频流...</div>
+            <canvas id="canvasRear"></canvas>
+        </div>
+    </div>
+
     <script>
         // WebSocket连接管理
         class ConnectionManager {
@@ -1184,6 +1326,29 @@
 
             handleMessage(data) {
                 if (data.type === 'heartbeat_ack') {
+                    return;
+                }
+
+                // 特殊处理视频流状态
+                if (data.type === 'stream_started') {
+                    const host = window.location.hostname || 'localhost';
+                    const wsUrl = data.streamUrl.replace('localhost', host);
+                    const width = data.width || 640;
+                    const height = data.height || 480;
+                    logger.info(`视频流已就绪 (${data.cameraId}): ${wsUrl} (${width}x${height})`);
+                    if (data.cameraId === 'front') camFront.start(wsUrl, width, height);
+                    if (data.cameraId === 'rear') camRear.start(wsUrl, width, height);
+                    return;
+                }
+                if (data.type === 'stream_stopped') {
+                    if (data.cameraId === 'front') camFront.onStopped();
+                    if (data.cameraId === 'rear') camRear.onStopped();
+                    return;
+                }
+                if (data.type === 'stream_error') {
+                    if (data.cameraId === 'front') camFront.onError(data.message);
+                    if (data.cameraId === 'rear') camRear.onError(data.message);
+                    logger.error(`视频流错误 (${data.cameraId}): ${data.message}`);
                     return;
                 }
 
@@ -1544,9 +1709,179 @@
                     }
                 }
             }
+
+            setFfmpegAvailable(available) {
+                const warning = document.getElementById('ffmpegWarning');
+                const btnFront = document.getElementById('btnFrontCam');
+                const btnRear = document.getElementById('btnRearCam');
+                if (available) {
+                    if (warning) warning.style.display = 'none';
+                    if (btnFront) btnFront.disabled = false;
+                    if (btnRear) btnRear.disabled = false;
+                } else {
+                    if (warning) warning.style.display = 'block';
+                    if (btnFront) btnFront.disabled = true;
+                    if (btnRear) btnRear.disabled = true;
+                }
+            }
         }
 
         const connManager = new ConnectionManager();
+
+        // 悬浮窗口逻辑
+        class FloatingWindow {
+            constructor(id, canvasId, cameraId) {
+                this.window = document.getElementById(id);
+                this.canvas = document.getElementById(canvasId);
+                this.cameraId = cameraId;
+                this.header = document.getElementById(id + 'Header');
+                this.player = null;
+                this.active = false;
+
+                this.initDrag();
+            }
+
+            initDrag() {
+                let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+                
+                // 同时支持从 header 和 content 区域拖拽
+                const dragZones = [this.header, this.window.querySelector('.fw-content')];
+                
+                const onMouseDown = (e) => {
+                    // 如果点击的是 resizer，不触发拖拽
+                    if (e.target.classList.contains('fw-resizer')) return;
+                    // 如果点击的是关闭按钮，不触发拖拽
+                    if (e.target.classList.contains('fw-close')) return;
+                    
+                    e = e || window.event;
+                    e.preventDefault();
+                    pos3 = e.clientX;
+                    pos4 = e.clientY;
+                    
+                    const onMouseMove = (ee) => {
+                        ee = ee || window.event;
+                        ee.preventDefault();
+                        pos1 = pos3 - ee.clientX;
+                        pos2 = pos4 - ee.clientY;
+                        pos3 = ee.clientX;
+                        pos4 = ee.clientY;
+                        this.window.style.top = (this.window.offsetTop - pos2) + "px";
+                        this.window.style.left = (this.window.offsetLeft - pos1) + "px";
+                    };
+                    
+                    const onMouseUp = () => {
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                    };
+                    
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                };
+
+                dragZones.forEach(zone => {
+                    zone.onmousedown = onMouseDown;
+                    zone.style.cursor = 'move';
+                });
+            }
+
+            show() {
+                if (this.active) return;
+                this.window.style.display = 'block';
+                this.active = true;
+                const loading = this.window.querySelector('.fw-loading');
+                if (loading) {
+                    loading.style.display = 'block';
+                    loading.textContent = '正在拉取视频流...';
+                }
+                connManager.send({ type: 'start_stream', cameraId: this.cameraId });
+            }
+
+            hide() {
+                this.window.style.display = 'none';
+                this.active = false;
+                if (this.player) {
+                    this.player.destroy();
+                    this.player = null;
+                }
+                connManager.send({ type: 'stop_stream', cameraId: this.cameraId });
+            }
+
+            start(url, width, height) {
+                if (!this.active) return;
+                console.log(`[FloatingWindow] 正在尝试连接视频流: ${url} (${width}x${height})`);
+                
+                this.aspectRatio = width / height;
+
+                // 动态调整窗口大小 (初始加载) - 默认宽度不超过 480，但支持根据屏幕大小缩放
+                let displayWidth = Math.min(width, 480);
+                const maxWidth = window.innerWidth * 0.9;
+                if (displayWidth > maxWidth) displayWidth = maxWidth;
+                
+                const displayHeight = displayWidth / this.aspectRatio;
+                this.window.style.width = displayWidth + 'px';
+                this.window.style.height = (displayHeight + 35) + 'px'; 
+
+                const loading = this.window.querySelector('.fw-loading');
+                if (loading) {
+                    loading.style.display = 'block';
+                    loading.textContent = '正在拉取视频数据...';
+                }
+                
+                if (typeof JSMpeg !== 'undefined') {
+                    // 如果已经有正在运行的播放器，先清理
+                    if (this.player) {
+                        this.player.destroy();
+                    }
+                    this.player = new JSMpeg.Player(url, { 
+                        canvas: this.canvas,
+                        autoplay: true,
+                        audio: false,
+                        onSourceEstablished: () => {
+                            if (loading) loading.style.display = 'none';
+                            console.log(`[JSMpeg] ${this.cameraId} source established`);
+                        }
+                    });
+                } else {
+                    logger.error('JSMpeg 库未加载');
+                }
+            }
+
+            onStopped() {
+                if (this.player) {
+                    this.player.destroy();
+                    this.player = null;
+                }
+                const loading = this.window.querySelector('.fw-loading');
+                if (loading) {
+                    loading.style.display = 'block';
+                    loading.style.color = '#ccc';
+                    loading.textContent = '视频流已停止';
+                }
+            }
+
+            onError(message) {
+                if (this.player) {
+                    this.player.destroy();
+                    this.player = null;
+                }
+                const loading = this.window.querySelector('.fw-loading');
+                if (loading) {
+                    loading.style.display = 'block';
+                    loading.style.color = '#ef4444';
+                    loading.innerHTML = `⚠️ 预览失败<br><span style="font-size:12px;">${message}</span>`;
+                }
+            }
+        }
+
+        const camFront = new FloatingWindow('camFront', 'canvasFront', 'front');
+        const camRear = new FloatingWindow('camRear', 'canvasRear', 'rear');
+
+        // 绑定按钮
+        const btnFront = document.getElementById('btnFrontCam');
+        if (btnFront) btnFront.addEventListener('click', () => camFront.show());
+        const btnRear = document.getElementById('btnRearCam');
+        if (btnRear) btnRear.addEventListener('click', () => camRear.show());
+
         class Logger {
             constructor(elementId) {
                 this.element = document.getElementById(elementId);

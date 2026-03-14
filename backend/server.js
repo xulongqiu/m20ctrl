@@ -4,6 +4,7 @@
  */
 
 const WebSocket = require('ws');
+const { spawn, execSync, exec } = require('child_process');
 const M20Client = require('./m20Client');
 const M20Protocol = require('./m20Protocol');
 
@@ -16,6 +17,8 @@ class ControllerServer {
         this.m20Client = null;
         this.protocol = new M20Protocol();
         this.clients = new Set();
+        this.ffmpegAvailable = false;
+        this.streams = new Map(); // camera_id -> { ffmpeg: process, wss: websocket_server }
     }
 
     /**
@@ -23,6 +26,9 @@ class ControllerServer {
      */
     async start() {
         try {
+            // 检查ffmpeg是否可用
+            this.checkFfmpeg();
+
             // 创建WebSocket服务器
             this.wss = new WebSocket.Server({ port: this.wsPort });
             console.log(`[Server] WebSocket服务器已启动，监听端口 ${this.wsPort}`);
@@ -47,7 +53,8 @@ class ControllerServer {
                 // 发送连接成功消息
                 ws.send(JSON.stringify({
                     type: 'connected',
-                    message: '已连接到控制服务器'
+                    message: '已连接到控制服务器',
+                    ffmpegAvailable: this.ffmpegAvailable
                 }));
 
                 // 发送当前M20连接状态
@@ -66,6 +73,20 @@ class ControllerServer {
         } catch (error) {
             console.error(`[Server] 启动失败: ${error.message}`);
             throw error;
+        }
+    }
+
+    /**
+     * 检查ffmpeg是否可用
+     */
+    checkFfmpeg() {
+        try {
+            execSync('ffmpeg -version', { stdio: 'ignore' });
+            this.ffmpegAvailable = true;
+            console.log('[Server] ✓ ffmpeg 已安装并可用');
+        } catch (e) {
+            this.ffmpegAvailable = false;
+            console.warn('[Server] ✗ 警告: 未找到 ffmpeg，视频预览功能将不可用');
         }
     }
 
@@ -225,6 +246,14 @@ class ControllerServer {
 
                 case 'clear_locations':
                     this.handleClearLocations(ws);
+                    break;
+                
+                case 'start_stream':
+                    this.handleStartStream(ws, data.cameraId);
+                    break;
+                
+                case 'stop_stream':
+                    this.handleStopStream(data.cameraId);
                     break;
 
                 default:
@@ -510,6 +539,143 @@ class ControllerServer {
     }
 
     /**
+     * 获取视频流分辨率 (使用 ffprobe)
+     */
+    async getStreamResolution(url) {
+        return new Promise((resolve) => {
+            const cmd = `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${url}"`;
+            exec(cmd, { timeout: 3000 }, (error, stdout) => {
+                if (error || !stdout) {
+                    console.warn(`[Server] ffprobe 无法获取分辨率, 使用默认值: ${error?.message || 'timeout/no output'}`);
+                    resolve({ width: 640, height: 480 });
+                    return;
+                }
+                const parts = stdout.trim().split('x');
+                if (parts.length === 2) {
+                    const width = parseInt(parts[0]);
+                    const height = parseInt(parts[1]);
+                    console.log(`[Server] 检测到分辨率: ${width}x${height}`);
+                    resolve({ width, height });
+                } else {
+                    resolve({ width: 640, height: 480 });
+                }
+            });
+        });
+    }
+
+    /**
+     * 处理开始视频流
+     */
+    async handleStartStream(ws, cameraId) {
+        if (!this.ffmpegAvailable) {
+            ws.send(JSON.stringify({ type: 'stream_error', cameraId, message: 'ffmpeg 未就绪' }));
+            return;
+        }
+
+        if (this.streams.has(cameraId)) {
+            console.log(`[Server] 流 ${cameraId} 已经启动`);
+            // 重发一次已启动的消息，方便 UI 状态同步
+            const existing = this.streams.get(cameraId);
+            ws.send(JSON.stringify({ 
+                type: 'stream_started', 
+                cameraId, 
+                streamUrl: `ws://localhost:${existing.port}`,
+                width: existing.width,
+                height: existing.height
+            }));
+            return;
+        }
+
+        const rtspUrl = cameraId === 'front' 
+            ? `rtsp://${this.m20Host}:8554/video1` 
+            : `rtsp://${this.m20Host}:8554/video2`;
+        
+        // 1. 尝试获取分辨率
+        const { width, height } = await this.getStreamResolution(rtspUrl);
+        
+        // 分配动态端口给每个相机的 WebSocket 推流器
+        const streamPort = cameraId === 'front' ? 8081 : 8082;
+        
+        console.log(`[Server] 正在启动流 ${cameraId}: ${rtspUrl} -> ws://localhost:${streamPort} (${width}x${height})`);
+
+        const videoWss = new WebSocket.Server({ port: streamPort });
+        videoWss.on('connection', (socket) => {
+            console.log(`[Server] JSMpeg 客户端连接到流 ${cameraId}`);
+            socket.on('close', () => console.log(`[Server] JSMpeg 客户端断开流 ${cameraId}`));
+        });
+
+        // 重新设计: ffmpeg 输出到 stdout, 我们通过 ws 广播
+        // 移除宽度限制，根据用户要求使用原始分辨率转发
+        const ffmpegProcess = spawn('ffmpeg', [
+            '-rtsp_transport', 'tcp',
+            '-i', rtspUrl,
+            '-f', 'mpegts',
+            '-codec:v', 'mpeg1video',
+            '-s', `${width}x${height}`, // 使用原始探测到的分辨率
+            '-b:v', '2000k', // 增加码率以保证高分辨率下的画质
+            '-r', '25',
+            '-bf', '0',
+            '-' // 輸出到 stdout
+        ]);
+
+        ffmpegProcess.stdout.on('data', (data) => {
+            videoWss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(data);
+                }
+            });
+        });
+
+        ffmpegProcess.stderr.on('data', (data) => {
+            // 将 ffmpeg 的日志输出到服务器控制台，方便调试
+            process.stderr.write(`[FFmpeg ${cameraId}] ${data.toString()}`);
+        });
+
+        ffmpegProcess.on('error', (err) => {
+            console.error(`[Server] ffmpeg 错误 (${cameraId}):`, err);
+            this.broadcastToClients({ type: 'stream_error', cameraId, message: `FFmpeg 进程错误: ${err.message}` });
+        });
+
+        ffmpegProcess.on('exit', (code) => {
+            console.log(`[Server] ffmpeg 退出 (${cameraId}) 代码:`, code);
+            if (code !== 0 && code !== null) {
+                // 如果不是正常退出（且不是被 kill 掉的，kill 掉通常是 null 或 0）
+                this.broadcastToClients({ type: 'stream_error', cameraId, message: `视频流异常退出 (Exit Code: ${code})` });
+            }
+        });
+
+        this.streams.set(cameraId, {
+            ffmpeg: ffmpegProcess,
+            wss: videoWss,
+            port: streamPort,
+            width,
+            height
+        });
+
+        this.broadcastToClients({ 
+            type: 'stream_started', 
+            cameraId, 
+            streamUrl: `ws://localhost:${streamPort}`,
+            width,
+            height
+        });
+    }
+
+    /**
+     * 处理停止视频流
+     */
+    handleStopStream(cameraId) {
+        const stream = this.streams.get(cameraId);
+        if (stream) {
+            console.log(`[Server] 停止流 ${cameraId}`);
+            stream.ffmpeg.kill('SIGINT');
+            stream.wss.close();
+            this.streams.delete(cameraId);
+            this.broadcastToClients({ type: 'stream_stopped', cameraId });
+        }
+    }
+
+    /**
      * 广播消息到所有客户端
      */
     broadcastToClients(message) {
@@ -525,6 +691,11 @@ class ControllerServer {
      * 停止服务器
      */
     stop() {
+        // 停止所有视频流
+        for (const cameraId of this.streams.keys()) {
+            this.handleStopStream(cameraId);
+        }
+        
         if (this.m20Client) {
             this.m20Client.disconnect();
         }
