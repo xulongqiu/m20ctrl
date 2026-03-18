@@ -11,6 +11,7 @@ try:
         RtmConfig, IRtmEventHandler, MessageEvent, PublishOptions, 
         RtmChannelType, RtmMessageType, SubscribeOptions
     )
+    from agora_video import AgoraVideoPublisher, get_agora_service
     HAS_AGORA_SDK = True
 except ImportError:
     HAS_AGORA_SDK = False
@@ -270,6 +271,12 @@ class AgoraDeviceBridge:
             device_cfg = agora_config.get('device', {})
             self.uid = device_cfg.get('uid')
             self.token = device_cfg.get('rtmToken')
+            
+            self.front_uid = device_cfg.get('frontUid')
+            self.front_token = device_cfg.get('frontToken', '')
+            self.rear_uid = device_cfg.get('rearUid')
+            self.rear_token = device_cfg.get('rearToken', '')
+            
             logging.info(f"Loaded Agora config from {config_path}")
         except Exception as e:
             logging.error(f"Failed to load {config_path}: {e}. Falling back to defaults.")
@@ -277,12 +284,17 @@ class AgoraDeviceBridge:
             self.channel = 'm20-ctrl'
             self.uid = 'dd_m20_xlq_mac'
             self.token = None
+            self.front_uid = None
+            self.rear_uid = None
         
         self.sock = None
         self.protocol = M20Protocol()
         self.running = False
         self.rtm_client = None
         self.subscribed = False
+        
+        self.front_publisher = None
+        self.rear_publisher = None
         
         if HAS_AGORA_SDK:
             config = RtmConfig(app_id=self.app_id, user_id=self.uid, use_string_user_id=True, event_handler=RtmHandler(self))
@@ -329,6 +341,32 @@ class AgoraDeviceBridge:
         self.connect_m20()
         threading.Thread(target=self.m20_recv_loop, daemon=True).start()
         threading.Thread(target=self.m20_heartbeat_loop, daemon=True).start()
+        
+        if HAS_AGORA_SDK:
+            try:
+                agora_service = get_agora_service(self.app_id)
+                if self.front_uid:
+                    self.front_publisher = AgoraVideoPublisher(
+                        agora_service, 
+                        {"channel": self.channel},
+                        f"rtsp://{self.m20_host}:8554/video1",
+                        self.front_uid,
+                        self.front_token
+                    )
+                    # No auto-start: self.front_publisher.start()
+                    
+                if self.rear_uid:
+                    self.rear_publisher = AgoraVideoPublisher(
+                        agora_service,
+                        {"channel": self.channel},
+                        f"rtsp://{self.m20_host}:8554/video2",
+                        self.rear_uid,
+                        self.rear_token
+                    )
+                    # No auto-start: self.rear_publisher.start()
+            except Exception as e:
+                logging.error(f"Failed to start Agora Video Publishers: {e}")
+
         logging.info("Bridge started. Waiting for messages.")
 
         try:
@@ -336,6 +374,9 @@ class AgoraDeviceBridge:
                 time.sleep(1)
         except KeyboardInterrupt:
             self.running = False
+            if self.front_publisher: self.front_publisher.stop()
+            if self.rear_publisher: self.rear_publisher.stop()
+            
             if self.sock:
                 self.sock.close()
             if self.rtm_client:
@@ -410,7 +451,22 @@ class AgoraDeviceBridge:
             cmd_type = cmd.get("type")
             asdu = None
             
-            if cmd_type == "axis_control":
+            if "PatrolDevice" in cmd:
+                asdu = cmd
+                
+            if cmd_type == "start_stream":
+                camera_id = cmd.get("cameraId")
+                if camera_id == "front" and self.front_publisher:
+                    self.front_publisher.start()
+                elif camera_id == "rear" and self.rear_publisher:
+                    self.rear_publisher.start()
+            elif cmd_type == "stop_stream":
+                camera_id = cmd.get("cameraId")
+                if camera_id == "front" and self.front_publisher:
+                    self.front_publisher.stop()
+                elif camera_id == "rear" and self.rear_publisher:
+                    self.rear_publisher.stop()
+            elif cmd_type == "axis_control":
                 axes = cmd.get("axes", {})
                 asdu = {
                     "PatrolDevice": {

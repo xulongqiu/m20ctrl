@@ -44,8 +44,8 @@ try {
 // 同时生成 RTC Token (如果需要)
 try {
     const channelName = 'm20-ctrl';
-    // 对于字符串 UID，使用 buildTokenWithAccount
-    const rtcToken = RtcTokenBuilder.buildTokenWithAccount(
+    // 对于字符串 UID，使用 buildTokenWithUserAccount
+    const rtcToken = RtcTokenBuilder.buildTokenWithUserAccount(
         APP_ID, appCertificate, channelName, uid, RtcRole.PUBLISHER, expireSeconds
     );
     console.log(`✅ RTC Token for channel "${channelName}" (len=${rtcToken.length}):`);

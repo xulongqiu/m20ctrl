@@ -2,3 +2,4 @@
 # 建议在 M20 Ubuntu 环境测试安装：
 # pip3 install agora-python-sdk
 agora-python-sdk>=1.0.0
+av>=10.0.0

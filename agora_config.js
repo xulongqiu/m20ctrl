@@ -3,7 +3,11 @@ window.AGORA_CONFIG = {
     "channel": "m20-ctrl",
     "device": {
         "uid": "dd_m20_xlq_mac",
-        "rtmToken": "007eJxTYOBg2rBMVdP4MjdvZsGK9ydi1jxXXCh1inv6xdnLLKVsDXYoMKQZmyeaWBonWyYbW5iYJZlYmCebGpumJhsYp1qmmZqa8sfvymwIZGTY8WkfEyMDEwMjAyMDiM/HkJISn2tkEF+RUxifm5gMAKNiIWo="
+        "rtmToken": "007eJxTYOBg2rBMVdP4MjdvZsGK9ydi1jxXXCh1inv6xdnLLKVsDXYoMKQZmyeaWBonWyYbW5iYJZlYmCebGpumJhsYp1qmmZqa8sfvymwIZGTY8WkfEyMDEwMjAyMDiM/HkJISn2tkEF+RUxifm5gMAKNiIWo=",
+        "frontUid": "dd_m20_xlq_mac_front_cam",
+        "frontToken": "007eJxTYLDNSrq1gntWmMRj9pTNFjdOnPJmvLmooMR2/bqU8Om+Bf8VGNKMzRNNLI2TLZONLUzMkkwszJNNjU1Tkw2MUy3TTE1ND07eldkQyMiwtfANCyMDIwMLAyMDCDCBSWYwyQImORhyjQx0k0uKciQYUlLic40M4ityCuNzE5Pj04ry80rikxNzAVpqKd8=",
+        "rearUid": "dd_m20_xlq_mac_rear_cam",
+        "rearToken": "007eJxTYBBSfnfE/L/StFTFPWGTby7PutaUx/NA+L9d1STF+5+LZUwUGNKMzRNNLI2TLZONLUzMkkwszJNNjU1Tkw2MUy3TTE1ND07eldkQyMhwcH8FMyMDIwMLAyMDCDCBSWYwyQImORhyjQx0k0uKcsQZUlLic40M4ityCuNzE5Pji1ITi+KTE3MBQugpXg=="
     },
     "web": {
         "rtmUid": "dd_m20_xlq_mac_rtm_ui",

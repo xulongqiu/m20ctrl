@@ -1326,7 +1326,7 @@
                 let sent = false;
                 
                 // 仅走本地 WebSocket 的消息类型（不需要远端转发）
-                const localOnlyTypes = ['heartbeat', 'config_m20', 'start_stream', 'stop_stream', 'load_locations', 'save_location', 'clear_locations'];
+                const localOnlyTypes = ['heartbeat', 'config_m20', 'load_locations', 'save_location', 'clear_locations'];
                 
                 if (localOnlyTypes.includes(data.type)) {
                     // 本地专用消息，只走 WebSocket
@@ -2429,6 +2429,8 @@
                     this.rtmToken = config.web.rtmToken;
                     this.rtcToken = config.web.rtcToken;
                     this.deviceUid = (config.device && config.device.uid) || 'dd_m20_xlq_mac';
+                    this.frontUid = (config.device && config.device.frontUid) || 'dd_m20_xlq_mac_front_cam';
+                    this.rearUid = (config.device && config.device.rearUid) || 'dd_m20_xlq_mac_rear_cam';
                     this.configLoaded = true;
                     
                     this.updateConfigUI(true);
@@ -2538,12 +2540,23 @@
                         logger.info(`[Agora RTC] 收到用户 ${user.uid} 发布了 ${mediaType}`);
                         await this.rtcClient.subscribe(user, mediaType);
                         if (mediaType === "video") {
-                            // 默认将收到的视频流显示在 Front Cam
-                            camFront.show();
-                            setTimeout(() => {
-                                // 估算一个初始宽高度，或者直接铺满
-                                camFront.startAgoraVideo(user.videoTrack, user.uid, 640, 480);
-                            }, 500);
+                            if (user.uid === this.frontUid) {
+                                camFront.show();
+                                setTimeout(() => {
+                                    camFront.startAgoraVideo(user.videoTrack, user.uid, 640, 480);
+                                }, 500);
+                            } else if (user.uid === this.rearUid) {
+                                camRear.show();
+                                setTimeout(() => {
+                                    camRear.startAgoraVideo(user.videoTrack, user.uid, 640, 480);
+                                }, 500);
+                            } else {
+                                logger.info(`[Agora RTC] 未知摄像头 UID: ${user.uid}，默认弹至前摄窗口`);
+                                camFront.show();
+                                setTimeout(() => {
+                                    camFront.startAgoraVideo(user.videoTrack, user.uid, 640, 480);
+                                }, 500);
+                            }
                         }
                     });
 
