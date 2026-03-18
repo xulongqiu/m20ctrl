@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "shengwang-docs": {
+      "url": "https://doc-mcp.shengwang.cn/mcp",
+      "type": "sse"
+    }
+  }
+}
+

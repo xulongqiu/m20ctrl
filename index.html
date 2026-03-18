@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M20机器狗上位机控制</title>
     <script src="jsmpeg.min.js"></script>
+    <script src="agora_config.js"></script>
+    <script src="AgoraRTC_N-4.21.0.js"></script>
+    <script src="agora-rtm-sdk.js"></script>
     <style>
         * {
             margin: 0;
@@ -721,6 +724,17 @@
                     style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; transition: all 0.3s;">连接</button>
                 <span id="connStatus" style="color: #ef4444; font-size: 12px; font-weight: 500;">✗ 未连接</span>
             </div>
+            
+            <div
+                style="margin-top: 10px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,0.1); padding: 8px; border-radius: 8px;">
+                <span style="color: white; font-size: 12px;">声网远程:</span>
+                <div id="agoraConfigInfo" style="color: rgba(255,255,255,0.7); font-size: 11px; display: flex; flex-direction: column; gap: 2px;">
+                    <span id="agoraConfigStatus" style="color: #666;">⏳ 加载配置中...</span>
+                </div>
+                <button id="connectAgoraBtn"
+                    style="padding: 8px 16px; background: #666; color: white; border: none; border-radius: 4px; cursor: not-allowed; font-weight: 500; transition: all 0.3s; font-size: 12px;" disabled>连接声网</button>
+                <span id="agoraConnStatus" style="color: #ef4444; font-size: 12px; font-weight: 500;">✗ RTM离线</span>
+            </div>
         </div>
 
         <div class="main-grid">
@@ -1309,11 +1323,29 @@
             }
 
             send(data) {
-                if (this.isConnected && this.ws) {
+                let sent = false;
+                
+                // 仅走本地 WebSocket 的消息类型（不需要远端转发）
+                const localOnlyTypes = ['heartbeat', 'config_m20', 'start_stream', 'stop_stream', 'load_locations', 'save_location', 'clear_locations'];
+                
+                if (localOnlyTypes.includes(data.type)) {
+                    // 本地专用消息，只走 WebSocket
+                    if (this.isConnected && this.ws) {
+                        this.ws.send(JSON.stringify(data));
+                        sent = true;
+                    }
+                } else if (window.agoraManager && window.agoraManager.isConnected) {
+                    // 声网 RTM 在线 → 优先走远端
+                    logger.info(`[Agora RTM] ✉️ 远端发送: ${data.type}`);
+                    window.agoraManager.sendCommand(data);
+                    sent = true;
+                } else if (this.isConnected && this.ws) {
+                    // RTM 不在线 → 回退到本地 WebSocket
                     this.ws.send(JSON.stringify(data));
-                    return true;
+                    sent = true;
                 }
-                return false;
+                
+                return sent;
             }
 
             sendM20Config(m20IP, m20Port) {
@@ -1803,7 +1835,49 @@
                     this.player.destroy();
                     this.player = null;
                 }
+                // 如果使用声网视频，这里不停止声网订阅（暂由整体连接管理），
+                // 如果是局域网，停止 ffmpeg ws 流
                 connManager.send({ type: 'stop_stream', cameraId: this.cameraId });
+            }
+
+            startAgoraVideo(videoTrack, uid, width, height) {
+                if (!this.active) return;
+                console.log(`[FloatingWindow] 准备渲染 AgoraRTC 视频流 UID:${uid}`);
+                
+                this.aspectRatio = width / height;
+                let displayWidth = Math.min(width, 480);
+                const maxWidth = window.innerWidth * 0.9;
+                if (displayWidth > maxWidth) displayWidth = maxWidth;
+                
+                const displayHeight = displayWidth / this.aspectRatio;
+                this.window.style.width = displayWidth + 'px';
+                this.window.style.height = (displayHeight + 35) + 'px';
+                
+                const loading = this.window.querySelector('.fw-loading');
+                if (loading) loading.style.display = 'none';
+
+                // 清理旧的 JSMpeg player
+                if (this.player) {
+                    this.player.destroy();
+                    this.player = null;
+                }
+
+                // 创建新的 container 给 track 播放，覆盖 canvas
+                let videoContainer = this.window.querySelector('.agora-video-container');
+                if (!videoContainer) {
+                    videoContainer = document.createElement('div');
+                    videoContainer.className = 'agora-video-container';
+                    videoContainer.style.width = '100%';
+                    videoContainer.style.height = '100%';
+                    videoContainer.style.position = 'absolute';
+                    videoContainer.style.top = '0';
+                    videoContainer.style.left = '0';
+                    videoContainer.style.zIndex = '5';
+                    this.window.querySelector('.fw-content').appendChild(videoContainer);
+                }
+                
+                // 播放视频
+                videoTrack.play(videoContainer, {fit: 'contain'});
             }
 
             start(url, width, height) {
@@ -1907,8 +1981,12 @@
                     items[0].remove();
                 }
 
-                // 自动滚动到底部
-                this.element.scrollTop = this.element.scrollHeight;
+                // 自动滚动到底部 (仅当用户已经在底部附近时)
+                const threshold = 100; // 阈值100px
+                const isAtBottom = this.element.scrollHeight - this.element.scrollTop - this.element.clientHeight < threshold;
+                if (isAtBottom) {
+                    this.element.scrollTop = this.element.scrollHeight;
+                }
             }
 
             send(message) { this.log('send', message); }
@@ -2319,6 +2397,282 @@
 
         // 状态数据由机器人主动上报，无需模拟
         logger.info('前端界面已加载完成');
+        
+        // --- 声网 (Agora) RTM/RTC 逻辑集成 ---
+        class AgoraManager {
+            constructor() {
+                this.rtmClient = null;
+                this.rtcClient = null;
+                this.isConnected = false;
+                this.configLoaded = false;
+                this.appId = '';
+                this.channelName = '';
+                this.rtmUid = '';
+                this.rtcUid = '';
+                this.rtmToken = '';
+                this.rtcToken = '';
+                this.deviceUid = ''; // 用于追踪机器狗是否在线
+                
+                // 自动加载配置
+                this.loadConfig();
+            }
+
+            async loadConfig() {
+                // 如果是通过 script 标签加载的，window.AGORA_CONFIG 应该已经存在
+                if (window.AGORA_CONFIG) {
+                    const config = window.AGORA_CONFIG;
+                    this.appId = config.appId;
+                    this.channelName = config.channel;
+                    this.rtmUid = config.web.rtmUid || config.web.uid;
+                    this.rtcUid = config.web.rtcUid || config.web.uid;
+                    this.uid = this.rtmUid; // 兼容 UI 显示
+                    this.rtmToken = config.web.rtmToken;
+                    this.rtcToken = config.web.rtcToken;
+                    this.deviceUid = (config.device && config.device.uid) || 'dd_m20_xlq_mac';
+                    this.configLoaded = true;
+                    
+                    this.updateConfigUI(true);
+                    logger.info("声网配置加载成功 (来自 agora_config.js): " + this.channelName);
+                    return;
+                }
+
+                // 备选方案：尝试 fetch (仅在 Web Server 环境下有效)
+                try {
+                    const response = await fetch('agora_config.json');
+                    if (response.ok) {
+                        const config = await response.json();
+                        // ... 同上逻辑 ...
+                    }
+                } catch (e) {
+                    this.updateConfigUI(false);
+                    logger.error("声网配置加载失败: " + e.message);
+                }
+            }
+
+            updateConfigUI(success) {
+                const status = document.getElementById('agoraConfigStatus');
+                const btn = document.getElementById('connectAgoraBtn');
+                if (success) {
+                    status.innerHTML = `✅ 已加载配置: ${this.channelName} (${this.uid})`;
+                    status.style.color = '#10b981';
+                    btn.disabled = false;
+                    btn.style.background = '#ea66ab';
+                    btn.style.cursor = 'pointer';
+                } else {
+                    status.innerHTML = '❌ 配置文件 agora_config.json 加载失败';
+                    status.style.color = '#ef4444';
+                    btn.style.background = '#666';
+                }
+            }
+
+            async connect(appId, channelName, uid, rtmToken, rtcToken) {
+                // 清洗参数
+                appId = (appId || '').trim();
+                channelName = (channelName || '').trim();
+                uid = (uid || '').trim();
+                rtmToken = (rtmToken || '').trim();
+                rtcToken = (rtcToken || '').trim();
+
+                if (this.isConnected) {
+                    this.disconnect();
+                    return;
+                }
+                
+                this.appId = appId;
+                this.channelName = channelName;
+                const useRtmUid = this.rtmUid || uid;
+                const useRtcUid = this.rtcUid || uid;
+                
+                logger.info(`[Agora] 正在启动连接... (RtmUid: ${useRtmUid}, RtcUid: ${useRtcUid})`);
+                logger.info(`[Agora] 调试参数: appId=${appId}, channel=${channelName}`);
+                logger.info(`[Agora] 调试 Token: RTM=${(rtmToken||"").substring(0, 10)}... (len:${rtmToken.length}), RTC=${(rtcToken||"").substring(0, 10)}... (len:${rtcToken.length})`);
+                
+                try {
+                    // 1. 初始化并连接 RTM (信令控制)
+                    if (!window.AgoraRTM) {
+                        throw new Error("AgoraRTM is not defined. 请确保本地 agora-rtm-sdk.js 加载成功。");
+                    }
+                    const rtmGlobal = window.AgoraRTM;
+                    this.rtmClient = new rtmGlobal.RTM(appId, useRtmUid, {
+                        areaCode: "CHINA",
+                        presenceTimeout: 300
+                    });
+                    
+                    // RTM 登录
+                    logger.info(`[Agora RTM] 正在登录...`);
+                    await this.rtmClient.login({ token: rtmToken || undefined });
+                    logger.info(`[Agora RTM] ✅ 登录成功`);
+                    
+                    // RTM 2.x 订阅频道
+                    await this.rtmClient.subscribe(channelName, { withMessage: true, withPresence: true });
+                    
+                    // RTM 2.x 监听消息
+                    this.rtmClient.addEventListener("message", (event) => {
+                        this.handleMessage(event.message, event.publisher);
+                    });
+                    
+                    // RTM 2.x 监听状态 (Presence)
+                    this.rtmClient.addEventListener("presence", (event) => {
+                        if (event.publisher === this.deviceUid) {
+                            if (event.eventType === 'SNAPSHOT' || event.eventType === 'REMOTE_JOIN') {
+                                this.updateRobotOnlineStatus(true);
+                            } else if (event.eventType === 'REMOTE_LEAVE') {
+                                this.updateRobotOnlineStatus(false);
+                            }
+                        }
+                    });
+                        
+                    // 监听连接状态
+                    this.rtmClient.addEventListener('status', (event) => {
+                        logger.info(`[Agora RTM] 状态变化: ${event.state} (${event.reason})`);
+                        if (event.state === 'FAILED' || event.state === 'DISCONNECTED') {
+                            this.updateStatus(false);
+                        }
+                    });
+
+                    // 2. 初始化并连接 RTC (音视频订阅)
+                    AgoraRTC.setLogLevel(2); // WARNING
+                    this.rtcClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+                    
+                    this.rtcClient.on("user-published", async (user, mediaType) => {
+                        logger.info(`[Agora RTC] 收到用户 ${user.uid} 发布了 ${mediaType}`);
+                        await this.rtcClient.subscribe(user, mediaType);
+                        if (mediaType === "video") {
+                            // 默认将收到的视频流显示在 Front Cam
+                            camFront.show();
+                            setTimeout(() => {
+                                // 估算一个初始宽高度，或者直接铺满
+                                camFront.startAgoraVideo(user.videoTrack, user.uid, 640, 480);
+                            }, 500);
+                        }
+                    });
+
+                    this.rtcClient.on("user-unpublished", (user, mediaType) => {
+                        logger.info(`[Agora RTC] 用户 ${user.uid} 停止发布 ${mediaType}`);
+                    });
+
+                    logger.info(`[Agora RTC] 正在加入频道...`);
+                    await this.rtcClient.join(appId, channelName, rtcToken || null, useRtcUid);
+                    logger.info(`[Agora RTC] ✅ 已加入频道 (UID: ${useRtcUid})`);
+                    
+                    this.isConnected = true;
+                    this.updateStatus(true);
+                    logger.info(`[Agora] 🚀 声网服务全线就绪`);
+                    
+                    // 恢复按钮状态
+                    const btn = document.getElementById('connectAgoraBtn');
+                    btn.disabled = false;
+                    btn.textContent = '断开声网';
+                    btn.style.background = '#ef4444';
+
+                } catch (e) {
+                    logger.error(`[Agora] ❌ 连接异常: ${e.message}`);
+                    const rtmShowToken = (this.rtmToken || "").substring(0, 10);
+                    const rtcShowToken = (this.rtcToken || "").substring(0, 10);
+                    logger.error(`[DEBUG] 鉴权调试: RtmUid="${this.rtmUid}", RtcUid="${this.rtcUid}", RTM_Token="${rtmShowToken}...", RTC_Token="${rtcShowToken}..."`);
+                    this.disconnect();
+                    
+                    const btn = document.getElementById('connectAgoraBtn');
+                    btn.disabled = false;
+                    btn.textContent = '连接声网';
+                    btn.style.background = '#ea66ab';
+                }
+            }
+
+            async disconnect() {
+                try {
+                    if (this.rtmClient) {
+                        await this.rtmClient.unsubscribe(this.channelName);
+                        await this.rtmClient.logout();
+                    }
+                    if (this.rtcClient) {
+                        this.rtcClient.removeAllListeners();
+                        await this.rtcClient.leave();
+                    }
+                } catch(e) {
+                    console.error("Agora disconnect error:", e);
+                }
+                
+                this.isConnected = false;
+                this.updateStatus(false);
+                logger.info("已断开声网连接");
+                
+                const btn = document.getElementById('connectAgoraBtn');
+                btn.disabled = false;
+                btn.textContent = '连接声网';
+                btn.style.background = '#ea66ab';
+            }
+
+            sendCommand(cmdObj) {
+                if (!this.isConnected || !this.rtmClient) {
+                    logger.warn(`[Agora RTM] 无法发送: connected=${this.isConnected}, rtmClient=${!!this.rtmClient}`);
+                    return false;
+                }
+                
+                try {
+                    const payload = JSON.stringify(cmdObj);
+                    logger.info(`[Agora RTM] → publish to "${this.channelName}": ${payload.substring(0, 80)}...`);
+                    this.rtmClient.publish(this.channelName, payload).then(() => {
+                        logger.info(`[Agora RTM] ✅ 发送成功`);
+                    }).catch(err => {
+                        logger.error(`[Agora RTM] ❌ 发送失败: ${err.message}`);
+                    });
+                    return true;
+                } catch (e) {
+                    logger.error(`[Agora RTM] ❌ 发送异常: ${e.message}`);
+                    return false;
+                }
+            }
+
+            handleMessage(textMsg, senderId) {
+                try {
+                    const data = JSON.parse(textMsg);
+                    // RTM 收到的设备状态，走和 WebSocket 相同的处理逻辑
+                    connManager.handleMessage(data);
+                } catch (e) {
+                    logger.error(`[Agora RTM] 收到未知消息来源 ${senderId}: ${textMsg}`);
+                }
+            }
+
+            updateStatus(online) {
+                const el = document.getElementById('agoraConnStatus');
+                if (online) {
+                    el.textContent = '✓ RTM/RTC 在线';
+                    el.style.color = '#10b981';
+                } else {
+                    el.textContent = '✗ RTM/RTC 离线';
+                    el.style.color = '#ef4444';
+                }
+            }
+        }
+
+        window.agoraManager = new AgoraManager();
+
+        // 绑定声网面板事件
+        const connectBtn = document.getElementById('connectAgoraBtn');
+        connectBtn.addEventListener('click', () => {
+            if (!window.agoraManager.configLoaded) {
+                logger.error("配置未就绪，请检查 agora_config.js 是否已加载");
+                return;
+            }
+            
+            if (window.agoraManager.isConnected) {
+                connectBtn.disabled = true;
+                connectBtn.textContent = '断开中...';
+                window.agoraManager.disconnect();
+            } else {
+                // 开始连接
+                connectBtn.disabled = true;
+                connectBtn.textContent = '连接中...';
+                window.agoraManager.connect(
+                    window.agoraManager.appId, 
+                    window.agoraManager.channelName, 
+                    window.agoraManager.uid || window.agoraManager.rtmUid, 
+                    window.agoraManager.rtmToken, 
+                    window.agoraManager.rtcToken
+                );
+            }
+        });
     </script>
 </body>
 

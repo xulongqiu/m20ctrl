@@ -1,0 +1,4 @@
+# 由于声网 RTM Python SDK 及环境因设备而异
+# 建议在 M20 Ubuntu 环境测试安装：
+# pip3 install agora-python-sdk
+agora-python-sdk>=1.0.0
