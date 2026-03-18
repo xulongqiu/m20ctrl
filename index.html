@@ -1836,6 +1836,8 @@
                         canvas: this.canvas,
                         autoplay: true,
                         audio: false,
+                        videoBufferSize: 512 * 1024, // 减小视频缓冲区
+                        maxAudioLag: 0,              // 最小音频延迟 (即使没音频也设为0)
                         onSourceEstablished: () => {
                             if (loading) loading.style.display = 'none';
                             console.log(`[JSMpeg] ${this.cameraId} source established`);

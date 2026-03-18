@@ -604,17 +604,21 @@ class ControllerServer {
             socket.on('close', () => console.log(`[Server] JSMpeg 客户端断开流 ${cameraId}`));
         });
 
-        // 重新设计: ffmpeg 输出到 stdout, 我们通过 ws 广播
-        // 移除宽度限制，根据用户要求使用原始分辨率转发
+        // 零延迟优化参数
         const ffmpegProcess = spawn('ffmpeg', [
+            '-fflags', 'nobuffer',
+            '-flags', 'low_delay',
+            '-probesize', '32',
+            '-analyzeduration', '0',
             '-rtsp_transport', 'tcp',
             '-i', rtspUrl,
             '-f', 'mpegts',
             '-codec:v', 'mpeg1video',
-            '-s', `${width}x${height}`, // 使用原始探测到的分辨率
-            '-b:v', '2000k', // 增加码率以保证高分辨率下的画质
+            '-s', `${width}x${height}`,
+            '-b:v', '2000k',
             '-r', '25',
             '-bf', '0',
+            '-tune', 'zerolatency',
             '-' // 輸出到 stdout
         ]);
 
