@@ -1825,7 +1825,18 @@
                     loading.style.display = 'block';
                     loading.textContent = '正在拉取视频流...';
                 }
-                connManager.send({ type: 'start_stream', cameraId: this.cameraId });
+                // Probe H265 support before requesting stream
+                const video = document.createElement('video');
+                const supportsH265 = video.canPlayType('video/mp4; codecs="hvc1"') === 'probably' ||
+                                     video.canPlayType('video/mp4; codecs="hev1"') !== '';
+                const preferCodec = supportsH265 ? 'hevc' : 'h264';
+                const senderUid = window.agoraManager?.rtmUid || window.agoraManager?.uid || 'web_user';
+                connManager.send({ 
+                    type: 'start_stream', 
+                    cameraId: this.cameraId,
+                    prefer_codec: preferCodec,
+                    senderUid: senderUid
+                });
             }
 
             hide() {
@@ -1835,9 +1846,8 @@
                     this.player.destroy();
                     this.player = null;
                 }
-                // 如果使用声网视频，这里不停止声网订阅（暂由整体连接管理），
-                // 如果是局域网，停止 ffmpeg ws 流
-                connManager.send({ type: 'stop_stream', cameraId: this.cameraId });
+                const senderUid = window.agoraManager?.rtmUid || window.agoraManager?.uid || 'web_user';
+                connManager.send({ type: 'stop_stream', cameraId: this.cameraId, senderUid: senderUid });
             }
 
             startAgoraVideo(videoTrack, uid, width, height) {

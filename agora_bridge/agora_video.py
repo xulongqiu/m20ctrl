@@ -25,19 +25,22 @@ def get_agora_service(app_id):
     return _agora_service
 
 class AgoraVideoPublisher:
-    def __init__(self, agora_service, rtc_config, stream_url, uid, token=""):
+    def __init__(self, agora_service, rtc_config, stream_url, uid, token="", prefer_codec="h264"):
         """
         :param agora_service: AgoraService instance (already initialized)
         :param rtc_config: Dict with 'appId', 'channel'
         :param stream_url: RTSP URL (e.g., rtsp://10.21.31.103:8554/video1)
         :param uid: Agora UID for this camera (e.g., 'dd_m20_xlq_mac_front_cam')
         :param token: RTC Token (empty string if using APPID auth)
+        :param prefer_codec: Web client's preferred receive codec ('h264' or 'hevc'). 
+                             Used to decide passthrough vs. transcode strategy.
         """
         self.agora_service = agora_service
         self.rtc_config = rtc_config
         self.stream_url = stream_url
         self.uid = uid
         self.token = token
+        self.prefer_codec = prefer_codec  # 'h264' or 'hevc'
         
         self.connection = None
         self.running = False
@@ -133,18 +136,36 @@ class AgoraVideoPublisher:
                 logger.info(f"[{self.uid}] Successfully opened {self.stream_url}")
                 self.packet_count = 0
                 
-                # Detect actual codec
+                # Detect actual codec and decide strategy:
+                # prefer_codec 'h264'  + stream h264 → passthrough H264
+                # prefer_codec 'h264'  + stream hevc → transcode HEVC→H264
+                # prefer_codec 'hevc'  + stream hevc → passthrough H265 (e.g., Safari)
+                # prefer_codec 'hevc'  + stream h264 → passthrough H264 (no need to transcode up)
                 codec_name = video_stream.codec_context.name
-                do_transcoding = (codec_name != 'h264')
                 
-                if not do_transcoding:
-                    detected_codec = VideoCodecType.VIDEO_CODEC_H264
-                    logger.info(f"[{self.uid}] Detected H.264: Using Passthrough mode (0-CPU)")
+                if codec_name == 'h264':
+                    # Always passthrough if source is H264
+                    do_transcoding = False
+                    agora_codec = VideoCodecType.VIDEO_CODEC_H264
+                    logger.info(f"[{self.uid}] Source=H264, prefer={self.prefer_codec}: Passthrough H264 (0-CPU)")
+                elif codec_name in ('hevc', 'h265'):
+                    if self.prefer_codec == 'hevc':
+                        # Browser claims H265 support (e.g., Safari) → passthrough
+                        do_transcoding = False
+                        agora_codec = VideoCodecType.VIDEO_CODEC_H265
+                        logger.info(f"[{self.uid}] Source=HEVC, prefer=hevc: Passthrough H265 (0-CPU, Safari mode)")
+                    else:
+                        # Browser needs H264 (Chrome etc.) → transcode
+                        do_transcoding = True
+                        agora_codec = VideoCodecType.VIDEO_CODEC_H264
+                        logger.info(f"[{self.uid}] Source=HEVC, prefer=h264: Transcoding HEVC→H264")
                 else:
-                    detected_codec = VideoCodecType.VIDEO_CODEC_H264 # We transcode TO H.264 for Agora
-                    logger.info(f"[{self.uid}] Detected {codec_name}: Using Transcoding mode (HEVC -> H.264)")
+                    do_transcoding = False
+                    agora_codec = VideoCodecType.VIDEO_CODEC_GENERIC
+                    logger.info(f"[{self.uid}] Source={codec_name}: Unknown codec, attempting passthrough")
                     
-                    # Setup Decoder
+                # Setup transcoder if needed
+                if do_transcoding:
                     try:
                         decoder = video_stream.codec_context
                         # Setup Encoder (libx264)
@@ -160,16 +181,16 @@ class AgoraVideoPublisher:
                             'tune': 'zerolatency',
                             'crf': '23',
                             'g': '30',   # Keyframe every 1 second
-                            'x264-params': 'annexb=1:repeat-headers=1' # Crucial for resolution detection/billing
+                            'x264-params': 'annexb=1:repeat-headers=1'
                         }
                         encoder.open()
                     except Exception as e:
                         logger.error(f"[{self.uid}] Failed to setup transcoder: {e}")
-                        do_transcoding = False # Fallback to passthrough (will likely be black)
+                        do_transcoding = False # Fallback to passthrough
 
-                # Initialize Agora connection with H.264 (since we want the Web to see H.264)
+                # Initialize Agora connection with determined codec
                 if not self.connection:
-                    self._setup_connection(VideoCodecType.VIDEO_CODEC_H264)
+                    self._setup_connection(agora_codec)
                 
                 # Demux loop
                 for packet in container.demux(video_stream):

@@ -295,6 +295,10 @@ class AgoraDeviceBridge:
         
         self.front_publisher = None
         self.rear_publisher = None
+        # Multi-user viewer tracking (reference counting)
+        self._front_viewers: set = set()  # set of RTM UIDs watching front cam
+        self._rear_viewers: set = set()   # set of RTM UIDs watching rear cam
+        self._viewers_lock = threading.Lock()
         
         if HAS_AGORA_SDK:
             config = RtmConfig(app_id=self.app_id, user_id=self.uid, use_string_user_id=True, event_handler=RtmHandler(self))
@@ -456,16 +460,45 @@ class AgoraDeviceBridge:
                 
             if cmd_type == "start_stream":
                 camera_id = cmd.get("cameraId")
-                if camera_id == "front" and self.front_publisher:
-                    self.front_publisher.start()
-                elif camera_id == "rear" and self.rear_publisher:
-                    self.rear_publisher.start()
+                sender_uid = cmd.get("senderUid", "unknown")  # Web client should send their RTM UID
+                prefer_codec = cmd.get("prefer_codec", "h264")
+                with self._viewers_lock:
+                    if camera_id == "front" and self.front_publisher:
+                        was_empty = len(self._front_viewers) == 0
+                        self._front_viewers.add(sender_uid)
+                        if was_empty:
+                            self.front_publisher.prefer_codec = prefer_codec
+                            self.front_publisher.start()
+                            logging.info(f"[Camera] Front cam started for first viewer '{sender_uid}' (prefer_codec={prefer_codec})")
+                        else:
+                            logging.info(f"[Camera] Front cam already streaming. Added viewer '{sender_uid}' ({len(self._front_viewers)} total)")
+                    elif camera_id == "rear" and self.rear_publisher:
+                        was_empty = len(self._rear_viewers) == 0
+                        self._rear_viewers.add(sender_uid)
+                        if was_empty:
+                            self.rear_publisher.prefer_codec = prefer_codec
+                            self.rear_publisher.start()
+                            logging.info(f"[Camera] Rear cam started for first viewer '{sender_uid}' (prefer_codec={prefer_codec})")
+                        else:
+                            logging.info(f"[Camera] Rear cam already streaming. Added viewer '{sender_uid}' ({len(self._rear_viewers)} total)")
             elif cmd_type == "stop_stream":
                 camera_id = cmd.get("cameraId")
-                if camera_id == "front" and self.front_publisher:
-                    self.front_publisher.stop()
-                elif camera_id == "rear" and self.rear_publisher:
-                    self.rear_publisher.stop()
+                sender_uid = cmd.get("senderUid", "unknown")
+                with self._viewers_lock:
+                    if camera_id == "front" and self.front_publisher:
+                        self._front_viewers.discard(sender_uid)
+                        if len(self._front_viewers) == 0:
+                            self.front_publisher.stop()
+                            logging.info(f"[Camera] Front cam stopped – last viewer '{sender_uid}' left")
+                        else:
+                            logging.info(f"[Camera] Front cam still streaming. Viewer '{sender_uid}' left ({len(self._front_viewers)} remaining)")
+                    elif camera_id == "rear" and self.rear_publisher:
+                        self._rear_viewers.discard(sender_uid)
+                        if len(self._rear_viewers) == 0:
+                            self.rear_publisher.stop()
+                            logging.info(f"[Camera] Rear cam stopped – last viewer '{sender_uid}' left")
+                        else:
+                            logging.info(f"[Camera] Rear cam still streaming. Viewer '{sender_uid}' left ({len(self._rear_viewers)} remaining)")
             elif cmd_type == "axis_control":
                 axes = cmd.get("axes", {})
                 asdu = {
