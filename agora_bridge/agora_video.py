@@ -154,12 +154,13 @@ class AgoraVideoPublisher:
                         encoder.pix_fmt = 'yuv420p' # Standard for H.264
                         encoder.time_base = video_stream.time_base
                         encoder.framerate = video_stream.average_rate or 30
-                        # Real-time settings
+                        # Real-time settings optimized for Agora
                         encoder.options = {
                             'preset': 'ultrafast',
                             'tune': 'zerolatency',
-                            'crf': '23', # Reasonable quality
-                            'g': '30',   # GOP size (Intra interval)
+                            'crf': '23',
+                            'g': '30',   # Keyframe every 1 second
+                            'x264-params': 'annexb=1:repeat-headers=1' # Crucial for resolution detection/billing
                         }
                         encoder.open()
                     except Exception as e:
