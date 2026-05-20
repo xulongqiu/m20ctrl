@@ -4,9 +4,9 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
-# 检查端口 30001 是否被占用 (判断后端是否已经运行)
-if lsof -Pi :30001 -sTCP:LISTEN -t >/dev/null ; then
-    echo "[!] M20 控制后端已经在运行中 (端口 30001 被占用)"
+# 检查端口 8080 是否被占用 (判断后端是否已经运行)
+if lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null ; then
+    echo "[!] M20 控制后端已经在运行中 (端口 8080 被占用)"
     echo "正在打开控制面板..."
     open index.html
     echo "完成。本窗口将在 3 秒后关闭。"

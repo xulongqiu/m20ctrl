@@ -4,17 +4,39 @@
  */
 
 const WebSocket = require('ws');
+const dgram = require('dgram');
 const { spawn, execSync, exec } = require('child_process');
 const M20Client = require('./m20Client');
 const M20Protocol = require('./m20Protocol');
+const { normalizeRouteMode } = require('./navRouting');
 
 class ControllerServer {
     constructor(options = {}) {
         this.wsPort = options.wsPort || 8080;
         this.m20Host = options.m20Host || '10.21.31.103';
         this.m20Port = options.m20Port || 30001;
+        this.navHost = options.navHost || '10.21.31.106';
+        this.navPort = options.navPort || 30011;
+        this.navRouteMode = normalizeRouteMode(options.navRouteMode);
+        this.navVizPort = options.navVizPort || 30012;
+        // Target port for the register/ping packet. Defaults to the same port
+        // the backend listens on (typical production: NOS streamer binds the
+        // same port on its own host). Override in tests where backend and
+        // mock NOS share 127.0.0.1.
+        this.navVizRegisterPort = options.navVizRegisterPort || this.navVizPort;
         this.wss = null;
         this.m20Client = null;
+        this.navClient = null;
+        this.navVizSocket = null;
+        this.navVizListening = false;
+        this.navVizLastReceivedAt = 0;
+        this.navVizPacketCount = 0;
+        this.navVizLastSender = null;
+        this.navVizMonitorTimer = null;
+        this.navVizPingTimer = null;
+        this.navVizPingIntervalMs = options.navVizPingIntervalMs || 5000;
+        this.navVizPingCount = 0;
+        this.lastNavView = null;
         this.protocol = new M20Protocol();
         this.clients = new Set();
         this.ffmpegAvailable = false;
@@ -29,8 +51,11 @@ class ControllerServer {
             // 检查ffmpeg是否可用
             this.checkFfmpeg();
 
-            // 创建WebSocket服务器
+            // 创建 WebSocket 服务器。前端仍直接打开 index.html。
             this.wss = new WebSocket.Server({ port: this.wsPort });
+            this.wss.on('error', (err) => {
+                console.error(`[Server] WebSocket服务错误: ${err.message}`);
+            });
             console.log(`[Server] WebSocket服务器已启动，监听端口 ${this.wsPort}`);
 
             this.wss.on('connection', (ws) => {
@@ -64,10 +89,17 @@ class ControllerServer {
                         message: '已连接到M20机器狗'
                     }));
                 }
+
+                ws.send(JSON.stringify(this.buildNavLinkStatus()));
+                ws.send(JSON.stringify(this.buildNavVizStatus()));
+                if (this.lastNavView) {
+                    ws.send(JSON.stringify({ type: 'nav_view', data: this.lastNavView }));
+                }
             });
 
             // 初始化M20客户端
             this.initM20Client();
+            this.initNavVizReceiver();
 
             console.log(`[Server] 控制服务器已启动`);
         } catch (error) {
@@ -176,6 +208,291 @@ class ControllerServer {
     }
 
     /**
+     * 初始化自研导航 APDU 客户端
+     */
+    initNavClient() {
+        if (this.navClient) {
+            this.navClient.disconnect();
+        }
+
+        this.navClient = new M20Client({
+            host: this.navHost,
+            port: this.navPort
+        });
+
+        this.navClient.onStatusUpdate((asdu) => {
+            const parsed = this.protocol.parseStatusReport(asdu);
+            if (!parsed) {
+                this.broadcastToClients({
+                    type: 'nav_raw',
+                    data: asdu
+                });
+                return;
+            }
+            if (parsed.category === 'heartbeat') {
+                return;
+            }
+            if (parsed.category === 'command_response') {
+                this.broadcastToClients({
+                    type: 'command_response',
+                    data: parsed.data,
+                    commandType: parsed.type,
+                    command: parsed.command,
+                    source: 'custom_nav'
+                });
+                return;
+            }
+            this.broadcastToClients({
+                type: 'nav_status_report',
+                category: parsed.category,
+                command: parsed.command,
+                data: parsed.data
+            });
+        });
+
+        this.navClient.onConnectionChange((connected) => {
+            this.broadcastToClients(this.buildNavLinkStatus());
+            this.broadcastToClients({
+                type: connected ? 'nav_connected' : 'nav_disconnected',
+                message: connected
+                    ? `已连接到自研导航服务 (${this.navHost}:${this.navPort})`
+                    : '自研导航服务连接已断开'
+            });
+        });
+
+        this.navClient.connect()
+            .then(() => {
+                console.log(`[Server] 已连接到自研导航服务 (${this.navHost}:${this.navPort})`);
+            })
+            .catch(error => {
+                console.error(`[Server] 连接自研导航服务失败: ${error.message}`);
+                this.broadcastToClients(this.buildNavLinkStatus());
+                this.broadcastToClients({
+                    type: 'error',
+                    message: `连接自研导航服务失败: ${error.message}`
+                });
+            });
+    }
+
+    buildNavVizStatus(extra = {}) {
+        return {
+            type: 'nav_viz_status',
+            listening: this.navVizListening,
+            port: this.navVizPort,
+            packetCount: this.navVizPacketCount,
+            lastReceivedAt: this.navVizLastReceivedAt,
+            lastSender: this.navVizLastSender,
+            ageMs: this.navVizLastReceivedAt ? Date.now() - this.navVizLastReceivedAt : null,
+            pingCount: this.navVizPingCount,
+            pingTarget: `${this.navHost}:${this.navVizRegisterPort}`,
+            ...extra
+        };
+    }
+
+    /**
+     * 从监听 socket 主动给 NOS nav_viz_streamer 发一条注册包，让对端能从
+     * rinfo 拿到上位机 IP/端口并开始推送。
+     */
+    sendNavVizPing(reason = 'manual') {
+        if (!this.navVizSocket || !this.navVizListening) return false;
+        const payload = Buffer.from(JSON.stringify({
+            type: 'register',
+            client: 'm20ctrl',
+            want: 'nav_view',
+            reason,
+            ts: Date.now() / 1000
+        }), 'utf-8');
+        this.navVizSocket.send(payload, this.navVizRegisterPort, this.navHost, (err) => {
+            if (err) {
+                console.error(`[Server] nav_viz ping 发送失败 (${this.navHost}:${this.navVizRegisterPort}): ${err.message}`);
+            }
+        });
+        this.navVizPingCount += 1;
+        if (this.navVizPingCount === 1 || reason === 'manual' || reason === 'frontend') {
+            console.log(`[Server] nav_viz ping → ${this.navHost}:${this.navVizRegisterPort} (${reason})`);
+        }
+        return true;
+    }
+
+    startNavVizPingTimer() {
+        this.stopNavVizPingTimer();
+        // 在 custom 模式下保持心跳注册；vendor 模式不需要。
+        this.navVizPingTimer = setInterval(() => {
+            this.sendNavVizPing('keepalive');
+        }, this.navVizPingIntervalMs);
+    }
+
+    stopNavVizPingTimer() {
+        if (this.navVizPingTimer) {
+            clearInterval(this.navVizPingTimer);
+            this.navVizPingTimer = null;
+        }
+    }
+
+    refreshNavVizPing(reason) {
+        if (this.navRouteMode === 'custom') {
+            this.sendNavVizPing(reason);
+            this.startNavVizPingTimer();
+        } else {
+            this.stopNavVizPingTimer();
+        }
+    }
+
+    /**
+     * 启动导航视图 UDP 接收器
+     */
+    initNavVizReceiver() {
+        if (this.navVizMonitorTimer) {
+            clearInterval(this.navVizMonitorTimer);
+            this.navVizMonitorTimer = null;
+        }
+        this.stopNavVizPingTimer();
+        this.navVizListening = false;
+        this.navVizPacketCount = 0;
+        this.navVizLastReceivedAt = 0;
+        this.navVizLastSender = null;
+        this.navVizPingCount = 0;
+
+        const bindSocket = () => {
+            const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+            socket.on('message', (msg, rinfo) => {
+                let data;
+                try {
+                    data = JSON.parse(msg.toString('utf-8'));
+                } catch (error) {
+                    console.error(`[Server] 导航视图数据解析失败: ${error.message}`);
+                    return;
+                }
+                // 忽略我们自己发出的注册包（NAT/回环场景下会回到自己）。
+                if (data && data.type === 'register') return;
+
+                this.navVizPacketCount += 1;
+                this.navVizLastReceivedAt = Date.now();
+                this.navVizLastSender = `${rinfo.address}:${rinfo.port}`;
+                if (this.navVizPacketCount === 1) {
+                    console.log(`[Server] 收到首个导航视图UDP包，来源 ${this.navVizLastSender}, ${msg.length} bytes`);
+                    this.broadcastToClients(this.buildNavVizStatus());
+                }
+                this.lastNavView = data;
+                this.broadcastToClients({ type: 'nav_view', data });
+            });
+            socket.on('error', (error) => {
+                console.error(`[Server] 导航视图UDP错误: ${error.message}`);
+                this.navVizListening = false;
+                this.broadcastToClients(this.buildNavVizStatus({ message: error.message }));
+            });
+            socket.bind(this.navVizPort, () => {
+                this.navVizListening = true;
+                console.log(`[Server] 导航视图UDP监听端口 ${this.navVizPort}`);
+                this.broadcastToClients(this.buildNavVizStatus());
+                // 绑定完成后，如果当前在自研模式，立刻发一次注册包并开启 keepalive。
+                if (this.navRouteMode === 'custom') {
+                    this.sendNavVizPing('bind');
+                    this.startNavVizPingTimer();
+                }
+            });
+            this.navVizSocket = socket;
+
+            // Periodic heartbeat so the UI can distinguish "listening, no packets"
+            // from "receiving N pkt/s" and detect stalls when stream stops.
+            this.navVizMonitorTimer = setInterval(() => {
+                this.broadcastToClients(this.buildNavVizStatus());
+            }, 2000);
+        };
+
+        if (this.navVizSocket) {
+            const prev = this.navVizSocket;
+            this.navVizSocket = null;
+            prev.removeAllListeners('message');
+            prev.close(() => bindSocket());
+        } else {
+            bindSocket();
+        }
+    }
+
+    buildNavLinkStatus() {
+        return {
+            type: 'nav_link_status',
+            routeMode: this.navRouteMode,
+            host: this.navHost,
+            port: this.navPort,
+            connected: !!(this.navClient && this.navClient.isConnected),
+            vizPort: this.navVizPort
+        };
+    }
+
+    handleNavConfig(data) {
+        const prevHost = this.navHost;
+        const prevPort = this.navPort;
+        this.navHost = data.host || this.navHost;
+        if (data.port != null) {
+            const nextPort = parseInt(data.port);
+            if (Number.isFinite(nextPort) && nextPort > 0) {
+                this.navPort = nextPort;
+            }
+        }
+        this.navRouteMode = normalizeRouteMode(data.routeMode);
+        if (data.vizPort != null) {
+            const nextVizPort = parseInt(data.vizPort);
+            if (Number.isFinite(nextVizPort) && nextVizPort > 0 && nextVizPort !== this.navVizPort) {
+                this.navVizPort = nextVizPort;
+                this.initNavVizReceiver();
+            }
+        }
+
+        if (this.navRouteMode === 'custom') {
+            const hostChanged = prevHost !== this.navHost || prevPort !== this.navPort;
+            if (!this.navClient || !this.navClient.isConnected || hostChanged) {
+                this.initNavClient();
+            }
+        } else {
+            this.disconnectNavClient();
+        }
+        this.refreshNavVizPing('config_nav');
+        this.broadcastToClients(this.buildNavLinkStatus());
+    }
+
+    handleNavRoute(data) {
+        this.navRouteMode = normalizeRouteMode(data.routeMode);
+        console.log(`[Server] 导航链路切换为: ${this.navRouteMode}`);
+        if (this.navRouteMode === 'custom') {
+            if (!this.navClient || !this.navClient.isConnected) {
+                this.initNavClient();
+            }
+        } else {
+            this.disconnectNavClient();
+        }
+        this.refreshNavVizPing('nav_route');
+        this.broadcastToClients(this.buildNavLinkStatus());
+    }
+
+    disconnectNavClient() {
+        if (!this.navClient) return;
+        try {
+            this.navClient.disconnect();
+        } catch (err) {
+            console.warn(`[Server] 断开自研导航连接异常: ${err.message}`);
+        }
+        this.navClient = null;
+    }
+
+    sendNavCommand(buffer, label) {
+        const useCustom = this.navRouteMode === 'custom';
+        const client = useCustom ? this.navClient : this.m20Client;
+        const targetName = useCustom ? '自研导航服务' : 'M20机器狗';
+        if (!client || !client.isConnected) {
+            this.broadcastToClients({
+                type: 'error',
+                message: `未连接到${targetName}`
+            });
+            return false;
+        }
+        client.send(buffer);
+        console.log(`[Server] 已通过${targetName}发送${label}`);
+        return true;
+    }
+
+    /**
      * 处理客户端消息
      */
     handleClientMessage(ws, message) {
@@ -186,6 +503,25 @@ class ControllerServer {
             switch (data.type) {
                 case 'config_m20':
                     this.handleM20Config(data);
+                    break;
+
+                case 'config_nav':
+                    this.handleNavConfig(data);
+                    break;
+
+                case 'nav_route':
+                    this.handleNavRoute(data);
+                    break;
+
+                case 'nav_viz_ping':
+                    if (this.sendNavVizPing(data.reason || 'frontend')) {
+                        this.broadcastToClients(this.buildNavVizStatus());
+                    } else {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: 'nav_viz UDP 未监听，无法发送注册包'
+                        }));
+                    }
                     break;
 
                 case 'heartbeat':
@@ -369,90 +705,48 @@ class ControllerServer {
      * 处理导航任务
      */
     handleNavTask(navTask) {
-        if (!this.m20Client.isConnected) {
-            this.broadcastToClients({
-                type: 'error',
-                message: '未连接到M20机器狗'
-            });
-            return;
-        }
-
         const buffer = this.protocol.buildNavTask(navTask);
-        this.m20Client.send(buffer);
-        console.log(`[Server] 已发送导航任务`);
+        this.sendNavCommand(buffer, '导航任务');
     }
 
     /**
      * 处理取消导航
      */
     handleNavCancel() {
-        if (!this.m20Client.isConnected) {
-            this.broadcastToClients({
-                type: 'error',
-                message: '未连接到M20机器狗'
-            });
-            return;
-        }
-
         const buffer = this.protocol.buildNavCancel();
-        this.m20Client.send(buffer);
-        console.log(`[Server] 已发送取消导航命令`);
+        this.sendNavCommand(buffer, '取消导航命令');
     }
 
     /**
      * 处理初始化定位
      */
     handleInitLocalize(localize) {
-        if (!this.m20Client.isConnected) {
-            this.broadcastToClients({
-                type: 'error',
-                message: '未连接到M20机器狗'
-            });
-            return;
-        }
-
         const buffer = this.protocol.buildInitLocalize(localize);
-        this.m20Client.send(buffer);
-        console.log(`[Server] 已发送初始化定位命令`);
+        this.sendNavCommand(buffer, '初始化定位命令');
     }
 
     /**
      * 处理获取地图位置
      */
     handleGetMapPosition() {
-        if (!this.m20Client.isConnected) {
-            this.broadcastToClients({ type: 'error', message: '未连接到M20机器狗' });
-            return;
-        }
         const buffer = this.protocol.buildGetMapPosition();
-        this.m20Client.send(buffer);
-        console.log(`[Server] 已发送获取地图位置请求`);
+        this.sendNavCommand(buffer, '获取地图位置请求');
     }
 
     /**
      * 处理获取导航感知状态
      */
     handleGetNavPerception() {
-        if (!this.m20Client.isConnected) {
-            this.broadcastToClients({ type: 'error', message: '未连接到M20机器狗' });
-            return;
-        }
         const buffer = this.protocol.buildGetNavPerception();
-        this.m20Client.send(buffer);
-        console.log(`[Server] 已发送获取导航感知状态请求`);
+        this.sendNavCommand(buffer, '获取导航感知状态请求');
     }
 
     /**
      * 处理查询导航任务状态
      */
     handleQueryNavTaskStatus() {
-        if (!this.m20Client.isConnected) {
-            this.broadcastToClients({ type: 'error', message: '未连接到M20机器狗' });
-            return;
-        }
         const buffer = this.protocol.buildQueryNavTaskStatus();
-        this.m20Client.send(buffer);
-        console.log(`[Server] 已发送查询导航任务状态请求`);
+        this.sendNavCommand(buffer, '查询导航任务状态请求');
     }
 
     /**
@@ -703,6 +997,18 @@ class ControllerServer {
         if (this.m20Client) {
             this.m20Client.disconnect();
         }
+        if (this.navClient) {
+            this.navClient.disconnect();
+        }
+        if (this.navVizMonitorTimer) {
+            clearInterval(this.navVizMonitorTimer);
+            this.navVizMonitorTimer = null;
+        }
+        this.stopNavVizPingTimer();
+        if (this.navVizSocket) {
+            this.navVizSocket.close();
+            this.navVizSocket = null;
+        }
         if (this.wss) {
             this.wss.close();
         }
@@ -710,23 +1016,28 @@ class ControllerServer {
     }
 }
 
-// 启动服务器
-const server = new ControllerServer({
-    wsPort: 8080,
-    m20Host: '10.21.31.103',
-    m20Port: 30001
-});
+// 启动服务器（仅当直接执行时，require 调用不会自动启动）
+if (require.main === module) {
+    const server = new ControllerServer({
+        wsPort: 8080,
+        m20Host: '10.21.31.103',
+        m20Port: 30001,
+        navHost: '10.21.31.106',
+        navPort: 30011,
+        navRouteMode: 'vendor',
+        navVizPort: 30012
+    });
 
-server.start().catch(error => {
-    console.error(`[Server] 启动失败: ${error.message}`);
-    process.exit(1);
-});
+    server.start().catch(error => {
+        console.error(`[Server] 启动失败: ${error.message}`);
+        process.exit(1);
+    });
 
-// 优雅关闭
-process.on('SIGINT', () => {
-    console.log(`\n[Server] 正在关闭...`);
-    server.stop();
-    process.exit(0);
-});
+    process.on('SIGINT', () => {
+        console.log(`\n[Server] 正在关闭...`);
+        server.stop();
+        process.exit(0);
+    });
+}
 
-module.exports = server;
+module.exports = ControllerServer;

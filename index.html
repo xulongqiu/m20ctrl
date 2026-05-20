@@ -9,6 +9,8 @@
     <script src="agora_config.js"></script>
     <script src="AgoraRTC_N-4.21.0.js"></script>
     <script src="agora-rtm-sdk.js"></script>
+    <script src="map_manager.js"></script>
+    <script src="nav_view.js"></script>
     <style>
         * {
             margin: 0;
@@ -263,6 +265,26 @@
             margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+
+        .map-toolbar {
+            display: grid;
+            grid-template-columns: minmax(150px, 0.8fr) minmax(0, 1.2fr);
+            gap: 8px;
+            align-items: stretch;
+            margin-bottom: 10px;
+        }
+
+        .map-folder-status {
+            background: #f5f7fa;
+            color: #666;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 13px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
         }
 
         .button-group {
@@ -704,6 +726,142 @@
             display: none;
             margin-bottom: 10px;
         }
+
+        .nav-link-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .nav-link-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .nav-link-status {
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: #f5f7fa;
+            color: #666;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .nav-view-content {
+            background: #101820;
+        }
+
+        .nav-view-status {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.75);
+            color: #94a3b8;
+            font-size: 12px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .nav-view-basemap {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.75);
+            color: #94a3b8;
+            font-size: 12px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .nav-view-zoom {
+            position: absolute;
+            left: 10px;
+            bottom: 10px;
+            display: flex;
+            gap: 4px;
+            z-index: 3;
+        }
+
+        .nav-view-zoom button {
+            width: 32px;
+            height: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.78);
+            color: #e5e7eb;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .nav-view-zoom button:hover {
+            background: rgba(30, 41, 59, 0.95);
+            color: #ffffff;
+        }
+
+        .nav-view-zoom button:active,
+        .nav-view-zoom button.active {
+            background: #3b82f6;
+            border-color: #1d4ed8;
+            color: #ffffff;
+        }
+
+        .nav-view-cursor {
+            position: absolute;
+            right: 10px;
+            top: 44px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.85);
+            color: #e5e7eb;
+            font-size: 12px;
+            font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+            z-index: 2;
+            pointer-events: none;
+            display: none;
+        }
+
+        .nav-view-legend {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 5px 8px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.75);
+            color: #e5e7eb;
+            font-size: 11px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .legend-swatch {
+            width: 12px;
+            height: 3px;
+            border-radius: 2px;
+            display: inline-block;
+        }
     </style>
 </head>
 
@@ -1032,26 +1190,34 @@
             <div class="panel">
                 <div class="panel-title">导航控制</div>
 
-                <!-- 导航状态展示 -->
                 <div class="control-section">
-                    <div class="control-section-title">导航状态
-                        <button class="btn" id="refreshNavStatus"
-                            style="float:right;padding:2px 10px;font-size:12px;">刷新</button>
+                    <div class="control-section-title">导航链路</div>
+                    <div class="nav-link-grid">
+                        <div class="input-group">
+                            <label>控制链路</label>
+                            <select id="navRouteMode">
+                                <option value="vendor">原厂导航</option>
+                                <option value="custom" selected>自研导航</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>NOS 地址</label>
+                            <input type="text" id="navHost" value="10.21.31.106" placeholder="10.21.31.106">
+                        </div>
+                        <div class="input-group">
+                            <label>控制端口</label>
+                            <input type="number" id="navPort" value="30011" min="1" step="1">
+                        </div>
+                        <div class="input-group">
+                            <label>视图端口</label>
+                            <input type="number" id="navVizPort" value="30012" min="1" step="1">
+                        </div>
                     </div>
-                    <div class="status-grid three-col">
-                        <div class="status-item"><span class="status-label">地图X</span><span class="status-value"
-                                id="navPosX">--</span></div>
-                        <div class="status-item"><span class="status-label">地图Y</span><span class="status-value"
-                                id="navPosY">--</span></div>
-                        <div class="status-item"><span class="status-label">地图Yaw</span><span class="status-value"
-                                id="navPosYaw">--</span></div>
-                        <div class="status-item"><span class="status-label">定位状态</span><span class="status-value"
-                                id="navLocation">--</span></div>
-                        <div class="status-item"><span class="status-label">避障状态</span><span class="status-value"
-                                id="navObsState">--</span></div>
-                        <div class="status-item"><span class="status-label">任务状态</span><span class="status-value"
-                                id="navTaskStatus">--</span></div>
+                    <div class="nav-link-actions">
+                        <button class="btn" id="applyNavLink">应用链路</button>
+                        <button class="btn success" id="openNavView">打开导航视图</button>
                     </div>
+                    <div class="nav-link-status" id="navLinkStatus">导航链路: 自研导航</div>
                 </div>
 
                 <div class="control-section">
@@ -1163,22 +1329,62 @@
                     <button class="btn" id="initLocalize" style="width: 100%;">初始化定位</button>
                 </div>
 
-                <!-- 地点管理 -->
+                <!-- 导航状态展示 -->
                 <div class="control-section">
-                    <div class="control-section-title">地点管理</div>
-                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                    <div class="control-section-title">导航状态
+                        <span id="navStatusSource"
+                            style="margin-left:8px;padding:2px 8px;font-size:11px;border-radius:10px;background:#fee2e2;color:#991b1b;vertical-align:middle;">来源: 自研(未连接)</span>
+                        <button class="btn" id="refreshNavStatus"
+                            style="float:right;padding:2px 10px;font-size:12px;">刷新</button>
+                        <button class="btn success" id="locFillCurrent"
+                            title="把当前地图位置填到下方地点输入框（不写入文件）"
+                            style="float:right;padding:2px 10px;font-size:12px;margin-right:6px;">📍 记录当前位置</button>
+                    </div>
+                    <div class="status-grid three-col">
+                        <div class="status-item"><span class="status-label">地图X</span><span class="status-value"
+                                id="navPosX">--</span></div>
+                        <div class="status-item"><span class="status-label">地图Y</span><span class="status-value"
+                                id="navPosY">--</span></div>
+                        <div class="status-item"><span class="status-label">地图Yaw</span><span class="status-value"
+                                id="navPosYaw">--</span></div>
+                        <div class="status-item"><span class="status-label">定位状态</span><span class="status-value"
+                                id="navLocation">--</span></div>
+                        <div class="status-item"><span class="status-label">避障状态</span><span class="status-value"
+                                id="navObsState">--</span></div>
+                        <div class="status-item"><span class="status-label">任务状态</span><span class="status-value"
+                                id="navTaskStatus">--</span></div>
+                    </div>
+                </div>
+
+                <!-- 地图管理 -->
+                <div class="control-section">
+                    <div class="control-section-title">地图管理</div>
+                    <div class="map-toolbar">
+                        <button class="btn" id="mapFolderSelect">选择地图文件夹</button>
+                        <button class="btn" id="mapFolderRestore" style="display:none;">恢复上次</button>
+                        <button class="btn" id="mapFolderForget" style="display:none;" title="清除上次地图缓存">清除缓存</button>
+                        <div class="map-folder-status" id="mapFolderStatus">未选择地图文件夹</div>
+                    </div>
+                    <div class="input-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;">
                         <div class="input-group">
                             <label>地点名称</label>
                             <input type="text" id="locName" placeholder="输入名称">
                         </div>
                         <div class="input-group">
-                            <label>底图编号</label>
-                            <input type="number" id="locMapId" placeholder="0" min="0" step="1">
+                            <label>X (m)</label>
+                            <input type="number" id="locPosX" step="0.01" placeholder="0">
                         </div>
-                        <div class="input-group" style="display:flex;align-items:flex-end;">
-                            <button class="btn success" id="locSave" style="width:100%;">📍 记录当前位置</button>
+                        <div class="input-group">
+                            <label>Y (m)</label>
+                            <input type="number" id="locPosY" step="0.01" placeholder="0">
+                        </div>
+                        <div class="input-group">
+                            <label>Yaw (rad)</label>
+                            <input type="number" id="locYaw" step="0.01" placeholder="0">
                         </div>
                     </div>
+                    <button class="btn success" id="locSave"
+                        style="width:100%;margin-top:6px;">➕ 增加记录</button>
                     <div id="locationList"
                         style="max-height:180px;overflow-y:auto;margin-top:8px;border:1px solid #eee;border-radius:6px;">
                     </div>
@@ -1224,6 +1430,48 @@
         </div>
     </div>
 
+    <div id="navViewWindow" class="floating-window" style="top: 8px; left: 8px; width: 640px; height: 480px;">
+        <div class="fw-header" id="navViewHeader">
+            <span class="fw-title">🧭 导航视图</span>
+            <span class="fw-close" id="navViewClose">&times;</span>
+        </div>
+        <div class="fw-content nav-view-content">
+            <div class="fw-loading" id="navViewLoading">等待导航视图数据...</div>
+            <canvas id="navViewCanvas"></canvas>
+            <div class="nav-view-status" id="navViewStatus">未连接导航视图</div>
+            <div class="nav-view-basemap" id="navViewBaseMap">底图: 未选择地图文件夹</div>
+            <div class="nav-view-zoom" role="group" aria-label="导航视图工具">
+                <button type="button" id="navViewZoomIn" title="放大">+</button>
+                <button type="button" id="navViewZoomOut" title="缩小">−</button>
+                <button type="button" id="navViewZoomReset" title="重置视图">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 11l9-8 9 8" />
+                        <path d="M5 10v9h14v-9" />
+                    </svg>
+                </button>
+                <button type="button" id="navViewToolInspect" title="鼠标坐标读取（再次点击关闭）">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                        <line x1="2" y1="2" x2="9.586" y2="9.586" />
+                        <circle cx="11" cy="11" r="2" />
+                    </svg>
+                </button>
+            </div>
+            <div class="nav-view-cursor" id="navViewCursor"></div>
+            <div class="nav-view-legend">
+                <span class="legend-item"><span class="legend-swatch" style="background:#7f1d1d;"></span>全局路径</span>
+                <span class="legend-item"><span class="legend-swatch" style="background:#f97316;"></span>局部路径</span>
+                <span class="legend-item"><span class="legend-swatch" style="background:#ff00ff;"></span>障碍</span>
+                <span class="legend-item"><span class="legend-swatch" style="background:#00e6ff;"></span>inflation</span>
+                <span class="legend-item"><span class="legend-swatch" style="background:#ef4444;"></span>当前位置 / 导航目标</span>
+                <span class="legend-item"><span class="legend-swatch" style="background:#1e3a8a;"></span>地点</span>
+            </div>
+        </div>
+    </div>
+
     <script>
         // WebSocket连接管理
         class ConnectionManager {
@@ -1251,7 +1499,22 @@
                         this.reconnectDelay = 1000;
                         logger.info('✓ 已连接到后端服务');
                         this.startHeartbeat();
-                        this.sendM20Config();
+                        this.sendM20Config(
+                            document.getElementById('m20IP')?.value,
+                            document.getElementById('m20Port')?.value
+                        );
+                        const navCfg = this.getNavConfigFromUI();
+                        if (navCfg.routeMode === 'custom') {
+                            this.send({
+                                type: 'config_nav',
+                                routeMode: navCfg.routeMode,
+                                host: navCfg.host,
+                                port: navCfg.port,
+                                vizPort: navCfg.vizPort
+                            });
+                        } else {
+                            this.sendNavRoute(false);
+                        }
                     };
 
                     this.ws.onmessage = (event) => {
@@ -1326,7 +1589,22 @@
                 let sent = false;
                 
                 // 仅走本地 WebSocket 的消息类型（不需要远端转发）
-                const localOnlyTypes = ['heartbeat', 'config_m20', 'load_locations', 'save_location', 'clear_locations'];
+                const localOnlyTypes = [
+                    'heartbeat',
+                    'config_m20',
+                    'config_nav',
+                    'nav_route',
+                    'nav_viz_ping',
+                    'nav_task',
+                    'nav_cancel',
+                    'init_localize',
+                    'get_map_position',
+                    'get_nav_perception',
+                    'query_nav_status',
+                    'load_locations',
+                    'save_location',
+                    'clear_locations'
+                ];
                 
                 if (localOnlyTypes.includes(data.type)) {
                     // 本地专用消息，只走 WebSocket
@@ -1356,8 +1634,110 @@
                 });
             }
 
+            getNavConfigFromUI() {
+                return {
+                    routeMode: document.getElementById('navRouteMode')?.value || 'custom',
+                    host: document.getElementById('navHost')?.value || '10.21.31.106',
+                    port: parseInt(document.getElementById('navPort')?.value || '30011'),
+                    vizPort: parseInt(document.getElementById('navVizPort')?.value || '30012')
+                };
+            }
+
+            sendNavRoute(shouldLog = true) {
+                const cfg = this.getNavConfigFromUI();
+                const sent = this.send({
+                    type: 'nav_route',
+                    routeMode: cfg.routeMode
+                });
+                if (sent && shouldLog) {
+                    logger.send(`导航链路切换: ${cfg.routeMode === 'custom' ? '自研导航' : '原厂导航'}`);
+                }
+                return sent;
+            }
+
+            sendNavConfig() {
+                const cfg = this.getNavConfigFromUI();
+                const sent = this.send({
+                    type: 'config_nav',
+                    routeMode: cfg.routeMode,
+                    host: cfg.host,
+                    port: cfg.port,
+                    vizPort: cfg.vizPort
+                });
+                if (sent) {
+                    logger.send(`应用导航链路: ${cfg.routeMode === 'custom' ? `${cfg.host}:${cfg.port}` : '原厂导航'}, 视图UDP:${cfg.vizPort}`);
+                }
+                return sent;
+            }
+
+            updateNavLinkStatus(data) {
+                const routeMode = data.routeMode || 'vendor';
+                const isCustom = routeMode === 'custom';
+                const status = document.getElementById('navLinkStatus');
+                if (status) {
+                    const label = isCustom ? '自研导航' : '原厂导航';
+                    const detail = isCustom
+                        ? `${data.host || '--'}:${data.port || '--'} ${data.connected ? '已连接' : '未连接'}`
+                        : '导航命令/状态走原厂链路';
+                    status.textContent = `导航链路: ${label} | ${detail} | 视图UDP:${data.vizPort || '--'}`;
+                    status.style.background = isCustom && data.connected ? '#dcfce7' : '#f5f7fa';
+                    status.style.color = isCustom && data.connected ? '#166534' : '#666';
+                }
+                const badge = document.getElementById('navStatusSource');
+                if (badge) {
+                    const ok = !isCustom || data.connected;
+                    badge.textContent = isCustom
+                        ? (data.connected ? '来源: 自研' : '来源: 自研(未连接)')
+                        : '来源: 原厂';
+                    badge.style.background = isCustom ? (ok ? '#dcfce7' : '#fee2e2') : '#eef2ff';
+                    badge.style.color = isCustom ? (ok ? '#166534' : '#991b1b') : '#3730a3';
+                }
+                const select = document.getElementById('navRouteMode');
+                if (select && select.value !== routeMode) select.value = routeMode;
+                if (data.host) document.getElementById('navHost').value = data.host;
+                if (data.port) document.getElementById('navPort').value = data.port;
+                if (data.vizPort) document.getElementById('navVizPort').value = data.vizPort;
+            }
+
             handleMessage(data) {
                 if (data.type === 'heartbeat_ack') {
+                    return;
+                }
+
+                if (data.type === 'nav_view') {
+                    if (window.navView) {
+                        window.navView.update(data.data || data);
+                    }
+                    return;
+                }
+
+                if (data.type === 'nav_link_status') {
+                    this.updateNavLinkStatus(data);
+                    return;
+                }
+
+                if (data.type === 'nav_connected' || data.type === 'nav_disconnected') {
+                    logger.info(data.message || data.type);
+                    return;
+                }
+
+                if (data.type === 'nav_status_report') {
+                    if (['basic_status', 'motion_status', 'device_status', 'error_status'].includes(data.category)) {
+                        this.handleRobotStatus(data);
+                    } else {
+                        logger.recv(`自研导航状态: ${JSON.stringify(data.data || {})}`);
+                    }
+                    return;
+                }
+
+                if (data.type === 'nav_viz_status') {
+                    if (this._navVizLastListening !== data.listening) {
+                        logger.info(data.listening
+                            ? `导航视图UDP监听中: ${data.port}`
+                            : `导航视图UDP异常: ${data.message || data.port}`);
+                        this._navVizLastListening = data.listening;
+                    }
+                    if (window.navView) window.navView.updateVizStats(data);
                     return;
                 }
 
@@ -1402,7 +1782,8 @@
                 } else if (data.type === 'robot_status') {
                     this.handleRobotStatus(data);
                 } else if (data.type === 'command_response') {
-                    logger.recv(`命令响应 [Type:${data.commandType} Cmd:${data.command}]: ${JSON.stringify(data.data)}`);
+                    const src = data.source === 'custom_nav' ? '自研' : '原厂';
+                    logger.recv(`命令响应 [${src} Type:${data.commandType} Cmd:${data.command}]: ${JSON.stringify(data.data)}`);
                     this.handleCommandResponse(data);
                 } else if (data.type === 'locations_updated') {
                     this.renderLocationList(data.data);
@@ -1525,40 +1906,149 @@
                 }
 
                 container.innerHTML = locations.map((loc, idx) => `
-                    <div class="loc-item" data-posx="${loc.posX}" data-posy="${loc.posY}" data-yaw="${loc.yaw || 0}" data-mapid="${loc.mapId || 0}"
-                         style="padding:8px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.15s;"
+                    <div class="loc-item" data-id="${loc.id}" data-posx="${loc.posX}" data-posy="${loc.posY}" data-yaw="${loc.yaw || 0}"
+                         style="padding:8px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;transition:background 0.15s;"
                          onmouseover="this.style.background='#f0f7ff'" onmouseout="if(!this.classList.contains('selected'))this.style.background=''">
                         <input type="checkbox" class="loc-task-check" data-idx="${idx}" checked title="勾选=任务点，不勾选=过渡点"
                                style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
-                        <div style="flex:1;min-width:0;">
+                        <div class="loc-row-main" style="flex:1;min-width:0;cursor:pointer;">
                             <strong style="font-size:13px;">${loc.name}</strong>
-                            <span style="font-size:11px;color:#888;margin-left:6px;">地图${loc.mapId || 0}</span>
                         </div>
-                        <span style="font-size:11px;color:#666;flex-shrink:0;">(${loc.posX.toFixed(2)}, ${loc.posY.toFixed(2)})</span>
+                        <button type="button" class="loc-init" data-id="${loc.id}" data-name="${loc.name}"
+                                data-posx="${loc.posX}" data-posy="${loc.posY}" data-yaw="${loc.yaw || 0}"
+                                title="用此点初始化机器人定位"
+                                style="flex-shrink:0;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;cursor:pointer;padding:2px 8px;font-size:11px;border-radius:4px;line-height:1.4;white-space:nowrap;">
+                            📍 定位
+                        </button>
+                        <span class="loc-coord" data-id="${loc.id}" title="双击修改坐标"
+                              style="font-size:11px;color:#666;flex-shrink:0;cursor:text;user-select:none;">
+                            (${loc.posX.toFixed(2)}, ${loc.posY.toFixed(2)})
+                        </span>
+                        <button type="button" class="loc-delete" data-id="${loc.id}" data-name="${loc.name}" title="删除地点"
+                                style="flex-shrink:0;border:none;background:transparent;color:#dc2626;cursor:pointer;padding:2px 8px;font-size:16px;line-height:1;">×</button>
                     </div>
                 `).join('');
 
-                // 阻止 checkbox 点击冒泡（避免触发行点击）
                 container.querySelectorAll('.loc-task-check').forEach(cb => {
                     cb.addEventListener('click', e => e.stopPropagation());
                 });
 
-                // 点击行：填充坐标 + 根据 checkbox 设置点类型
-                container.querySelectorAll('.loc-item').forEach(item => {
-                    item.addEventListener('click', function () {
-                        document.getElementById('navTargetX').value = this.dataset.posx;
-                        document.getElementById('navTargetY').value = this.dataset.posy;
-                        document.getElementById('navTargetYaw').value = this.dataset.yaw;
-                        document.getElementById('navMapID').value = this.dataset.mapid;
-                        // 根据 checkbox 状态设置点类型
-                        const cb = this.querySelector('.loc-task-check');
+                // 单击名称区域：填充坐标 + 高亮
+                container.querySelectorAll('.loc-row-main').forEach(main => {
+                    main.addEventListener('click', function () {
+                        const item = this.closest('.loc-item');
+                        document.getElementById('navTargetX').value = item.dataset.posx;
+                        document.getElementById('navTargetY').value = item.dataset.posy;
+                        document.getElementById('navTargetYaw').value = item.dataset.yaw;
+                        const cb = item.querySelector('.loc-task-check');
                         document.getElementById('navPointType').value = cb && cb.checked ? '1' : '0';
                         const typeName = cb && cb.checked ? '任务点' : '过渡点';
-                        logger.info(`已填充: (${this.dataset.posx}, ${this.dataset.posy}) [${typeName}]`);
-                        // 高亮选中项
+                        logger.info(`已填充: (${item.dataset.posx}, ${item.dataset.posy}) [${typeName}]`);
                         container.querySelectorAll('.loc-item').forEach(i => { i.style.background = ''; i.classList.remove('selected'); });
-                        this.style.background = '#e3f2fd';
-                        this.classList.add('selected');
+                        item.style.background = '#e3f2fd';
+                        item.classList.add('selected');
+                    });
+                });
+
+                // 单条地点 → 用该点坐标初始化机器人定位
+                container.querySelectorAll('.loc-init').forEach(btn => {
+                    btn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        const name = this.dataset.name || this.dataset.id;
+                        const posX = parseFloat(this.dataset.posx);
+                        const posY = parseFloat(this.dataset.posy);
+                        const yaw = parseFloat(this.dataset.yaw) || 0;
+                        if (!Number.isFinite(posX) || !Number.isFinite(posY)) {
+                            showNavFeedback('⚠️ 该地点坐标无效', 'error');
+                            return;
+                        }
+                        if (!confirm(`用「${name}」 (${posX.toFixed(2)}, ${posY.toFixed(2)}, yaw=${yaw.toFixed(2)}) 初始化机器人定位？`)) return;
+                        const ok = connManager.send({
+                            type: 'init_localize',
+                            payload: { x: posX, y: posY, z: 0, yaw }
+                        });
+                        if (ok) {
+                            logger.send(`初始化定位 [${name}]: (${posX}, ${posY}), yaw=${yaw}`);
+                            showNavFeedback(`定位初始化指令已发送 (${name})，等待反馈...`, 'info');
+                        } else {
+                            showNavFeedback('⚠️ 未连接到后端服务或机器狗', 'error');
+                        }
+                    });
+                });
+
+                // 删除按钮
+                container.querySelectorAll('.loc-delete').forEach(btn => {
+                    btn.addEventListener('click', async function (e) {
+                        e.stopPropagation();
+                        const id = this.dataset.id;
+                        const name = this.dataset.name || id;
+                        if (!confirm(`删除地点 "${name}"?`)) return;
+                        if (!window.mapManager || !window.mapManager.hasWritableFolder()) {
+                            showNavFeedback('⚠️ 请先选择地图文件夹', 'error');
+                            return;
+                        }
+                        try {
+                            await window.mapManager.deleteLocation(id);
+                            showNavFeedback(`✅ 已删除地点: ${name}`, 'success');
+                        } catch (err) {
+                            showNavFeedback(`❌ 删除失败: ${err.message}`, 'error');
+                        }
+                    });
+                });
+
+                // 双击坐标：inline 编辑 X / Y
+                container.querySelectorAll('.loc-coord').forEach(span => {
+                    span.addEventListener('dblclick', function (e) {
+                        e.stopPropagation();
+                        if (!window.mapManager || !window.mapManager.hasWritableFolder()) {
+                            showNavFeedback('⚠️ 请先选择地图文件夹', 'error');
+                            return;
+                        }
+                        const id = this.dataset.id;
+                        const item = this.closest('.loc-item');
+                        const curX = parseFloat(item.dataset.posx) || 0;
+                        const curY = parseFloat(item.dataset.posy) || 0;
+                        const editor = document.createElement('span');
+                        editor.style.cssText = 'display:inline-flex;gap:4px;align-items:center;flex-shrink:0;';
+                        editor.innerHTML = `
+                            <input type="number" step="0.01" value="${curX.toFixed(3)}" data-field="x"
+                                style="width:64px;padding:1px 4px;font-size:11px;border:1px solid #cbd5e1;border-radius:3px;">
+                            <input type="number" step="0.01" value="${curY.toFixed(3)}" data-field="y"
+                                style="width:64px;padding:1px 4px;font-size:11px;border:1px solid #cbd5e1;border-radius:3px;">
+                            <button type="button" data-action="save" title="保存(Enter)"
+                                style="border:none;background:#16a34a;color:#fff;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:11px;">✓</button>
+                            <button type="button" data-action="cancel" title="取消(Esc)"
+                                style="border:none;background:#e5e7eb;color:#374151;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:11px;">×</button>
+                        `;
+                        const origSpan = this;
+                        this.replaceWith(editor);
+                        const xInput = editor.querySelector('input[data-field="x"]');
+                        xInput.focus();
+                        xInput.select();
+
+                        const restore = () => editor.replaceWith(origSpan);
+                        const save = async () => {
+                            const nx = parseFloat(editor.querySelector('input[data-field="x"]').value);
+                            const ny = parseFloat(editor.querySelector('input[data-field="y"]').value);
+                            if (!Number.isFinite(nx) || !Number.isFinite(ny)) {
+                                showNavFeedback('⚠️ 坐标必须是数字', 'error');
+                                return;
+                            }
+                            try {
+                                await window.mapManager.updateLocation(id, { posX: nx, posY: ny });
+                                showNavFeedback(`✅ 已更新地点坐标: (${nx.toFixed(3)}, ${ny.toFixed(3)})`, 'success');
+                                // list 会通过 onLocationsUpdated 自动重渲染，editor 节点会被 innerHTML 替换掉。
+                            } catch (err) {
+                                showNavFeedback(`❌ 更新失败: ${err.message}`, 'error');
+                                restore();
+                            }
+                        };
+                        editor.querySelector('[data-action="save"]').addEventListener('click', save);
+                        editor.querySelector('[data-action="cancel"]').addEventListener('click', restore);
+                        editor.addEventListener('keydown', (evt) => {
+                            if (evt.key === 'Enter') { evt.preventDefault(); save(); }
+                            else if (evt.key === 'Escape') { evt.preventDefault(); restore(); }
+                        });
                     });
                 });
             }
@@ -1961,12 +2451,53 @@
 
         const camFront = new FloatingWindow('camFront', 'canvasFront', 'front');
         const camRear = new FloatingWindow('camRear', 'canvasRear', 'rear');
+        const navView = new window.M20NavView.NavViewWindow({
+            windowEl: document.getElementById('navViewWindow'),
+            canvasEl: document.getElementById('navViewCanvas'),
+            loadingEl: document.getElementById('navViewLoading'),
+            headerEl: document.getElementById('navViewHeader'),
+            closeEl: document.getElementById('navViewClose'),
+            statusEl: document.getElementById('navViewStatus'),
+            baseMapStatusEl: document.getElementById('navViewBaseMap'),
+            zoomInEl: document.getElementById('navViewZoomIn'),
+            zoomOutEl: document.getElementById('navViewZoomOut'),
+            zoomResetEl: document.getElementById('navViewZoomReset'),
+            toolInspectEl: document.getElementById('navViewToolInspect'),
+            cursorInfoEl: document.getElementById('navViewCursor')
+        });
+        window.navView = navView;
+
+        // 默认把导航视图浮窗撑满「导航控制」面板左侧的空白区。
+        // 计算一次即可（用户之后可以自由拖动/调整）。
+        function fitNavViewToLeftOfControlPanel() {
+            const navWin = document.getElementById('navViewWindow');
+            const ctrlPanel = document.getElementById('navRouteMode')?.closest('.panel');
+            if (!navWin || !ctrlPanel) return;
+            const rect = ctrlPanel.getBoundingClientRect();
+            const margin = 8;
+            const width = Math.max(400, Math.floor(rect.left - margin * 2));
+            const height = Math.max(300, Math.floor(window.innerHeight - margin * 2));
+            navWin.style.left = margin + 'px';
+            navWin.style.top = margin + 'px';
+            navWin.style.width = width + 'px';
+            navWin.style.height = height + 'px';
+        }
+        // Wait one frame so layout is fully computed before measuring.
+        requestAnimationFrame(fitNavViewToLeftOfControlPanel);
 
         // 绑定按钮
         const btnFront = document.getElementById('btnFrontCam');
         if (btnFront) btnFront.addEventListener('click', () => camFront.show());
         const btnRear = document.getElementById('btnRearCam');
         if (btnRear) btnRear.addEventListener('click', () => camRear.show());
+        const btnNavView = document.getElementById('openNavView');
+        if (btnNavView) btnNavView.addEventListener('click', () => {
+            navView.show();
+            // Ask the backend to send a UDP register ping so NOS learns our IP/port.
+            try {
+                connManager.send({ type: 'nav_viz_ping', reason: 'open_window' });
+            } catch (e) { /* ignore */ }
+        });
 
         class Logger {
             constructor(elementId) {
@@ -2006,6 +2537,7 @@
         }
 
         const logger = new Logger('logContent');
+        window.logger = logger;
 
         // 虚拟摇杆
         class Joystick {
@@ -2257,6 +2789,24 @@
             }
         });
 
+        document.getElementById('applyNavLink').addEventListener('click', function () {
+            if (!connManager.sendNavConfig()) {
+                showNavFeedback('⚠️ 未连接到后端服务', 'error');
+            } else {
+                showNavFeedback('导航链路配置已下发', 'info');
+            }
+        });
+
+        document.getElementById('navRouteMode').addEventListener('change', function () {
+            if (!connManager.sendNavRoute(true)) {
+                showNavFeedback('⚠️ 未连接到后端服务', 'error');
+            }
+            const status = document.getElementById('navLinkStatus');
+            if (status && this.value === 'custom') {
+                status.textContent = '导航链路: 自研导航 | 请点击「应用链路」连接 NOS';
+            }
+        });
+
         // 导航控制 - 开始导航 (带反馈)
         document.getElementById('navStart').addEventListener('click', function () {
             const pointID = document.getElementById('navPointID').value || '0';
@@ -2296,6 +2846,14 @@
                     setTimeout(() => { btn.disabled = false; btn.textContent = '开始导航'; }, 3000);
                     logger.send(`导航任务: 目标(${x}, ${y})`);
                     showNavFeedback('导航任务已下发，等待报告...', 'info');
+                    if (window.navView) {
+                        window.navView.setGoal({
+                            x: parseFloat(x),
+                            y: parseFloat(y),
+                            yaw: parseFloat(yaw),
+                            name: '目标'
+                        });
+                    }
                 } else {
                     showNavFeedback('⚠️ 未连接到后端服务或机器狗', 'error');
                 }
@@ -2314,6 +2872,7 @@
                 setTimeout(() => { btn.disabled = false; btn.textContent = '取消任务'; }, 3000);
                 logger.send('取消导航任务');
                 showNavFeedback('取消请求已发送，等待反馈...', 'info');
+                if (window.navView) window.navView.setGoal(null);
             } else {
                 showNavFeedback('⚠️ 未连接到后端服务或机器狗', 'error');
             }
@@ -2349,35 +2908,73 @@
             logger.send('刷新导航状态');
         });
 
-        // 地点管理 - 记录当前位置
-        document.getElementById('locSave').addEventListener('click', function () {
-            const name = document.getElementById('locName').value || '未命名';
-            const mapId = parseInt(document.getElementById('locMapId').value || '0');
-            const posX = parseFloat(document.getElementById('navPosX').textContent) || 0;
-            const posY = parseFloat(document.getElementById('navPosY').textContent) || 0;
-            const yaw = parseFloat(document.getElementById('navPosYaw').textContent) || 0;
+        // 导航状态栏：把当前地图位置填到下方地点坐标输入框，不写文件
+        document.getElementById('locFillCurrent').addEventListener('click', function () {
+            const posX = parseFloat(document.getElementById('navPosX').textContent);
+            const posY = parseFloat(document.getElementById('navPosY').textContent);
+            const yaw = parseFloat(document.getElementById('navPosYaw').textContent);
 
-            if (posX === 0 && posY === 0) {
-                showNavFeedback('⚠️ 请先点击导航状态的「刷新」按钮获取当前地图位置', 'error');
+            if (!Number.isFinite(posX) || !Number.isFinite(posY)) {
+                showNavFeedback('⚠️ 当前没有有效的地图位置，先点「刷新」', 'error');
                 return;
             }
 
-            const msg = {
-                type: 'save_location',
-                payload: { name, mapId, posX, posY, posZ: 0, yaw }
-            };
-            if (connManager.send(msg)) {
+            document.getElementById('locPosX').value = posX.toFixed(3);
+            document.getElementById('locPosY').value = posY.toFixed(3);
+            document.getElementById('locYaw').value = Number.isFinite(yaw) ? yaw.toFixed(3) : '0';
+            document.getElementById('locName').focus();
+            showNavFeedback(`已填充 (${posX.toFixed(2)}, ${posY.toFixed(2)})，命名后点「增加记录」保存`, 'info');
+        });
+
+        // 地图管理 - 增加记录（写入 locations.json）
+        document.getElementById('locSave').addEventListener('click', async function () {
+            const name = document.getElementById('locName').value.trim() || '未命名';
+            const posX = parseFloat(document.getElementById('locPosX').value);
+            const posY = parseFloat(document.getElementById('locPosY').value);
+            const yawRaw = document.getElementById('locYaw').value;
+            const yaw = yawRaw === '' ? 0 : parseFloat(yawRaw);
+
+            if (!Number.isFinite(posX) || !Number.isFinite(posY)) {
+                showNavFeedback('⚠️ 请输入有效的 X / Y 坐标，或先点导航状态栏的「记录当前位置」', 'error');
+                return;
+            }
+            if (!Number.isFinite(yaw)) {
+                showNavFeedback('⚠️ Yaw 不是有效数字', 'error');
+                return;
+            }
+
+            if (!window.mapManager || !window.mapManager.hasWritableFolder()) {
+                showNavFeedback('⚠️ 请先选择地图文件夹，地点会保存到该文件夹的 locations.json', 'error');
+                return;
+            }
+
+            try {
+                await window.mapManager.saveLocation({ name, posX, posY, posZ: 0, yaw });
                 logger.send(`记录地点: ${name} (${posX}, ${posY})`);
                 document.getElementById('locName').value = '';
+                document.getElementById('locPosX').value = '';
+                document.getElementById('locPosY').value = '';
+                document.getElementById('locYaw').value = '';
+                showNavFeedback(`✅ 已保存「${name}」到 locations.json`, 'success');
+            } catch (err) {
+                showNavFeedback(`❌ 保存地点失败: ${err.message}`, 'error');
             }
         });
 
-        // 地点管理 - 清空
-        document.getElementById('locClear').addEventListener('click', function () {
-            if (confirm('确定要清空所有保存的地点吗？')) {
-                connManager.send({ type: 'clear_locations' });
-                logger.send('清空所有地点');
+        // 地图管理 - 清空
+        document.getElementById('locClear').addEventListener('click', async function () {
+            if (!confirm('确定要清空所有保存的地点吗？')) return;
+            if (window.mapManager && window.mapManager.hasWritableFolder()) {
+                try {
+                    await window.mapManager.clearLocations();
+                    logger.send('清空当前地图地点');
+                    showNavFeedback('✅ 已清空当前地图 locations.json', 'success');
+                } catch (err) {
+                    showNavFeedback(`❌ 清空地点失败: ${err.message}`, 'error');
+                }
+                return;
             }
+            showNavFeedback('⚠️ 请先选择地图文件夹', 'error');
         });
 
         // 连接成功后加载地点列表
@@ -2394,16 +2991,109 @@
             setTimeout(() => { el.style.display = 'none'; }, 5000);
         }
 
+
+        const mapManager = new window.M20Map.MapFolderManager({
+            statusEl: document.getElementById('mapFolderStatus'),
+            logger,
+            feedback: showNavFeedback,
+            onLocationsUpdated: (locations) => {
+                connManager.renderLocationList(locations);
+                if (window.navView) window.navView.setLocations(locations);
+            },
+            onBaseMapUpdated: (baseMap) => {
+                if (window.navView) window.navView.setBaseMap(baseMap);
+            }
+        });
+        window.mapManager = mapManager;
+
+        const restoreBtn = document.getElementById('mapFolderRestore');
+        const forgetBtn = document.getElementById('mapFolderForget');
+
+        function updateRestoreButtons(cached) {
+            if (!restoreBtn || !forgetBtn) return;
+            if (cached && cached.name) {
+                restoreBtn.style.display = '';
+                restoreBtn.textContent = `恢复上次: ${cached.name}`;
+                forgetBtn.style.display = '';
+            } else {
+                restoreBtn.style.display = 'none';
+                forgetBtn.style.display = 'none';
+            }
+        }
+
+        document.getElementById('mapFolderSelect').addEventListener('click', async function () {
+            this.disabled = true;
+            const oldText = this.textContent;
+            this.textContent = '加载中...';
+            try {
+                await mapManager.selectFolder();
+                showNavFeedback('✅ 地图文件夹已加载', 'success');
+                updateRestoreButtons(null);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    showNavFeedback(`❌ 地图加载失败: ${err.message}`, 'error');
+                    logger.error(`地图加载失败: ${err.message}`);
+                }
+            } finally {
+                this.disabled = false;
+                this.textContent = oldText;
+            }
+        });
+
+        if (restoreBtn) {
+            restoreBtn.addEventListener('click', async function () {
+                this.disabled = true;
+                const oldText = this.textContent;
+                this.textContent = '恢复中...';
+                try {
+                    const result = await mapManager.restoreCachedFolder({ promptIfNeeded: true });
+                    if (result.restored) {
+                        showNavFeedback(`✅ 已恢复地图文件夹: ${result.name}`, 'success');
+                        updateRestoreButtons(null);
+                    } else if (result.needsPermission) {
+                        showNavFeedback('⚠️ 未授予访问权限，请重新点击恢复', 'error');
+                    } else if (result.error) {
+                        showNavFeedback(`❌ 恢复失败: ${result.error.message}`, 'error');
+                    }
+                } finally {
+                    this.disabled = false;
+                    this.textContent = oldText;
+                }
+            });
+        }
+
+        if (forgetBtn) {
+            forgetBtn.addEventListener('click', async function () {
+                await mapManager.forgetCachedFolder();
+                updateRestoreButtons(null);
+                showNavFeedback('已清除上次地图文件夹缓存', 'info');
+            });
+        }
+
+        // 页面加载后尝试静默恢复上次选择的地图文件夹。
+        // File System Access 权限策略：refresh 后通常会丢失 readwrite 权限，
+        // 这种情况下不会弹窗，仅显示「恢复上次」按钮等待用户点击授权。
+        (async () => {
+            try {
+                const result = await mapManager.restoreCachedFolder({ promptIfNeeded: false });
+                if (result.restored) {
+                    logger.info(`已自动恢复上次地图文件夹: ${result.name}`);
+                } else if (result.needsPermission) {
+                    updateRestoreButtons({ name: result.name });
+                    logger.info(`检测到上次地图文件夹: ${result.name}（需点击「恢复上次」授权）`);
+                }
+            } catch (err) {
+                logger.error(`地图缓存恢复异常: ${err.message}`);
+            }
+        })();
+
         // 状态映射表
         const NAV_STATUS_MAP = {
             0: '空闲', 1: '退出充电桩中', 2: '导航预处理',
             3: '导航中', 4: '导航完成', 5: '进入充电桩中', 255: '暂停中'
         };
 
-        // 连接成功后加载地点
-        setTimeout(() => {
-            connManager.send({ type: 'load_locations' });
-        }, 2000);
+        // 地点只从当前地图文件夹的 locations.json 加载。
 
         // 状态数据由机器人主动上报，无需模拟
         logger.info('前端界面已加载完成');

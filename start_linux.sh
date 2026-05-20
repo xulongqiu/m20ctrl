@@ -4,18 +4,18 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
-# 检查端口 30001 是否被占用 (判断后端是否已经运行)
+# 检查端口 8080 是否被占用 (判断后端是否已经运行)
 PORT_IN_USE=0
 if command -v lsof >/dev/null 2>&1; then
-    if lsof -Pi :30001 -sTCP:LISTEN -t >/dev/null ; then PORT_IN_USE=1; fi
+    if lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null ; then PORT_IN_USE=1; fi
 elif command -v ss >/dev/null 2>&1; then
-    if ss -ltn | grep -q ":30001 " ; then PORT_IN_USE=1; fi
+    if ss -ltn | grep -q ":8080 " ; then PORT_IN_USE=1; fi
 elif command -v netstat >/dev/null 2>&1; then
-    if netstat -tln | grep -q ":30001 " ; then PORT_IN_USE=1; fi
+    if netstat -tln | grep -q ":8080 " ; then PORT_IN_USE=1; fi
 fi
 
 if [ $PORT_IN_USE -eq 1 ]; then
-    echo "[!] M20 控制后端已经在运行中 (端口 30001 被占用)"
+    echo "[!] M20 控制后端已经在运行中 (端口 8080 被占用)"
     echo "正在打开控制面板..."
     
     if which xdg-open > /dev/null; then xdg-open index.html
