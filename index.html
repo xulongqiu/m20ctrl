@@ -1479,6 +1479,13 @@
                 height: 42px;
             }
 
+            #navViewCanvas {
+                touch-action: none;
+                user-select: none;
+                -webkit-user-select: none;
+                -webkit-touch-callout: none;
+            }
+
             .mobile-tabbar {
                 position: fixed;
                 left: 0;
@@ -1525,34 +1532,43 @@
                 right: max(10px, env(safe-area-inset-right));
                 bottom: calc(74px + env(safe-area-inset-bottom));
                 z-index: 3600;
-                display: grid;
-                grid-template-columns: 1fr;
-                gap: 0;
-                min-width: 118px;
-                max-width: 148px;
+                display: block;
+                width: 94px;
+                height: 94px;
                 padding: 0;
-                border: 1px solid rgba(242, 201, 76, 0.46);
-                border-radius: 8px;
+                border: 2px solid rgba(242, 201, 76, 0.58);
+                border-radius: 50%;
                 overflow: hidden;
-                background: rgba(8, 12, 14, 0.9);
-                box-shadow: 0 10px 28px rgba(0,0,0,0.42);
+                background:
+                    radial-gradient(circle at 50% 42%, rgba(242, 201, 76, 0.22), transparent 42%),
+                    rgba(8, 12, 14, 0.92);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.46), inset 0 0 0 1px rgba(255,255,255,0.06);
                 backdrop-filter: blur(12px);
             }
 
             .mobile-mode-float.nav-mode {
                 border-color: rgba(239, 68, 68, 0.58);
+                background:
+                    radial-gradient(circle at 50% 42%, rgba(239, 68, 68, 0.25), transparent 42%),
+                    rgba(8, 12, 14, 0.93);
             }
 
             .mobile-mode-toggle {
-                min-height: 42px;
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                width: 45px;
+                height: 45px;
                 border: 0;
-                border-radius: 0;
+                border-radius: 50%;
                 background: #f2c94c;
                 color: #101414;
                 font: inherit;
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 900;
                 letter-spacing: 0;
+                box-shadow: 0 4px 12px rgba(242, 201, 76, 0.22);
             }
 
             .mobile-mode-float.nav-mode .mobile-mode-toggle {
@@ -1561,15 +1577,24 @@
             }
 
             .mobile-mode-telemetry {
-                display: block;
-                padding: 5px 7px 6px;
+                position: absolute;
+                min-width: 42px;
                 color: #dbe7e4;
-                font-size: 10px;
-                font-weight: 800;
-                line-height: 1.25;
+                font-size: 13px;
+                font-weight: 900;
+                line-height: 1;
                 text-align: center;
                 white-space: nowrap;
                 letter-spacing: 0;
+                text-shadow: 0 1px 5px rgba(0,0,0,0.72);
+            }
+
+            #mobileModeSpeed {
+                left: 50%;
+                bottom: 12px;
+                transform: translateX(-50%);
+                color: #dbe7e4;
+                font-size: 14px;
             }
 
             body.drive-open {
@@ -2346,7 +2371,7 @@
 
     <div id="mobileModeFloat" class="mobile-mode-float" aria-live="polite">
         <button type="button" id="mobileModeToggle" class="mobile-mode-toggle">常规模式</button>
-        <span id="mobileModeTelemetry" class="mobile-mode-telemetry">Vx -- / Vy -- / Wz --</span>
+        <span id="mobileModeSpeed" class="mobile-mode-telemetry">--</span>
     </div>
 
     <div id="driveOverlay" class="drive-overlay" aria-hidden="true">
@@ -3591,15 +3616,14 @@
             if (!floatEl || !toggleEl) return;
             currentUsageMode = Number.isFinite(mode) ? mode : currentUsageMode;
             floatEl.classList.toggle('nav-mode', currentUsageMode === 1);
-            toggleEl.textContent = usageModeLabels[currentUsageMode] || `模式 ${currentUsageMode}`;
+            toggleEl.textContent = currentUsageMode === 1 ? '导航' : '常规';
             toggleEl.title = currentUsageMode === 1 ? '点击切回常规模式' : '点击切到导航模式';
         }
 
         function updateMobileModeTelemetry(d) {
-            const telemetryEl = document.getElementById('mobileModeTelemetry');
-            if (!telemetryEl) return;
             const f2 = (v) => v != null && Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '--';
-            telemetryEl.textContent = `Vx ${f2(d.linearX)} / Vy ${f2(d.linearY)} / Wz ${f2(d.omegaZ)}`;
+            const speedEl = document.getElementById('mobileModeSpeed');
+            if (speedEl) speedEl.textContent = f2(d.linearX);
         }
 
         function sendAxisZero() {

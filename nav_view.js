@@ -312,6 +312,7 @@
         constructor(options) {
             this.window = options.windowEl;
             this.canvas = options.canvasEl;
+            this.gestureLayer = this.canvas ? this.canvas.parentElement : null;
             this.loadingEl = options.loadingEl;
             this.header = options.headerEl;
             this.closeEl = options.closeEl;
@@ -338,6 +339,8 @@
             this.locations = [];
             this.goal = null;
             this.vizStats = null;
+            this.tapMarker = null;
+            this.pinnedCursorInfo = false;
             this.initDrag();
             this.initZoomControls();
             this.initToolControls();
@@ -360,22 +363,62 @@
 
         initCanvasInteractions() {
             if (!this.canvas) return;
-            // Drag-to-pan is always on. Inspect tool only adds a coord readout.
-            this.canvas.addEventListener('mousedown', (e) => {
-                if (e.button !== 0) return;
+            // Disable browser native scroll / pinch-zoom so pointer events fully
+            // route to our pan / inspect handlers (mobile + desktop).
+            this.canvas.style.touchAction = 'none';
+
+            // --------------- pointer events (unified mouse + single-touch) ---------------
+            this.canvas.addEventListener('pointerdown', (e) => {
+                if (e.button != null && e.button !== 0) return;
                 e.preventDefault();
+                e.stopPropagation();
+                this.canvas.setPointerCapture?.(e.pointerId);
                 this.startPan(e);
             });
-            this.canvas.addEventListener('mousemove', (e) => {
-                if (this.tool === 'inspect') this.updateCursorInfo(e);
+
+            this.canvas.addEventListener('pointermove', (e) => {
+                if (this.panState) {
+                    this.continuePan(e);
+                } else if (this.tool === 'inspect') {
+                    this.updateCursorInfo(e);
+                }
             });
-            this.canvas.addEventListener('mouseleave', () => {
-                if (this.cursorInfoEl) this.cursorInfoEl.style.display = 'none';
+
+            this.canvas.addEventListener('pointerup', (e) => {
+                e.stopPropagation();
+                const wasTap = this.panState
+                    && Math.hypot(e.clientX - this.panState.startX, e.clientY - this.panState.startY) < 14;
+                this.endPan();
+                this.canvas.releasePointerCapture?.(e.pointerId);
+                if (this.tool === 'inspect' && wasTap) {
+                    this.markInspectPoint(e);
+                }
+            });
+
+            this.canvas.addEventListener('pointercancel', () => {
+                this.endPan();
+            });
+
+            this.canvas.addEventListener('pointerleave', () => {
+                if (!this.panState && this.cursorInfoEl && !this.pinnedCursorInfo) {
+                    this.cursorInfoEl.style.display = 'none';
+                }
+            });
+
+            // --------------- legacy fallback (pre-PointerEvent desktop) ---------------
+            this.canvas.addEventListener('mousedown', (e) => {
+                if (typeof PointerEvent !== 'undefined') return;  // pointer path already handles this
+                if (e.button !== 0) return;
+                e.preventDefault();
+                e.stopPropagation();
+                this.startPan(e);
             });
             document.addEventListener('mousemove', (e) => {
+                if (typeof PointerEvent !== 'undefined') return;  // pointer path already handles this
                 if (this.panState) this.continuePan(e);
             });
             document.addEventListener('mouseup', () => {
+                if (typeof PointerEvent !== 'undefined') return;  // pointer path already handles this
                 if (this.panState) this.endPan();
             });
         }
@@ -386,7 +429,10 @@
             this.updateToolButtons();
             this.updateCanvasCursor();
             if (next !== 'inspect' && this.cursorInfoEl) {
+                this.pinnedCursorInfo = false;
+                this.tapMarker = null;
                 this.cursorInfoEl.style.display = 'none';
+                if (this.active) this.draw();
             }
         }
 
@@ -420,7 +466,12 @@
         startPan(event) {
             if (!this.baseMap || !this.baseMap.yaml) return;
             if (!this.viewCenter) this.viewCenter = this.resolveDefaultCenter();
-            this.panState = { x: event.clientX, y: event.clientY };
+            this.panState = {
+                x: event.clientX,
+                y: event.clientY,
+                startX: event.clientX,
+                startY: event.clientY
+            };
             this.updateCanvasCursor();
         }
 
@@ -459,8 +510,26 @@
                 return;
             }
             this.cursorInfoEl.style.display = 'block';
+            this.pinnedCursorInfo = false;
             this.cursorInfoEl.textContent =
                 `px(${coords.px}, ${coords.py})  世界(${coords.wx.toFixed(3)}, ${coords.wy.toFixed(3)}) m`;
+        }
+
+        markInspectPoint(event) {
+            if (!this.canvas || !this.baseMap || !this.baseMap.yaml) return;
+            const coords = this.canvasEventToCoords(event);
+            if (!coords) return;
+            this.tapMarker = {
+                x: coords.wx,
+                y: coords.wy
+            };
+            if (this.cursorInfoEl) {
+                this.cursorInfoEl.style.display = 'block';
+                this.pinnedCursorInfo = true;
+                this.cursorInfoEl.textContent =
+                    `px(${coords.px}, ${coords.py})  世界(${coords.wx.toFixed(3)}, ${coords.wy.toFixed(3)}) m`;
+            }
+            this.draw();
         }
 
         canvasEventToCoords(event) {
@@ -754,6 +823,7 @@
                 if (this.snapshot && this.snapshot.localized && this.snapshot.pose) {
                     this.drawPose(ctx, this.snapshot.pose, viewport);
                 }
+                this.drawTapMarker(ctx, viewport);
                 this.setLoading('');
             } else {
                 this.drawPlaceholder(ctx, width, height);
@@ -983,6 +1053,28 @@
                 ctx.fillText(goal.name, c.x + 8, c.y - 8);
                 ctx.restore();
             }
+        }
+
+        drawTapMarker(ctx, viewport) {
+            if (!this.tapMarker) return;
+            const c = this.worldToCanvas(this.tapMarker, viewport);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(242, 201, 76, 0.95)';
+            ctx.fillStyle = 'rgba(242, 201, 76, 0.95)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, 14, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(c.x - 16, c.y);
+            ctx.lineTo(c.x + 16, c.y);
+            ctx.moveTo(c.x, c.y - 16);
+            ctx.lineTo(c.x, c.y + 16);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         }
 
         drawLocations(ctx, viewport) {
