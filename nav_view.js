@@ -100,7 +100,8 @@
         const originSrc = grid.origin || grid.origin_pose || { x: 0, y: 0 };
         const origin = {
             x: Number(originSrc.x || (Array.isArray(originSrc) ? originSrc[0] : 0) || 0),
-            y: Number(originSrc.y || (Array.isArray(originSrc) ? originSrc[1] : 0) || 0)
+            y: Number(originSrc.y || (Array.isArray(originSrc) ? originSrc[1] : 0) || 0),
+            yaw: Array.isArray(originSrc) ? Number(originSrc[2] || 0) : extractYaw(originSrc)
         };
         const out = {
             width, height, resolution, origin,
@@ -613,7 +614,7 @@
                             frame: normalized.local_costmap.frame_id,
                             size: `${normalized.local_costmap.width}×${normalized.local_costmap.height}`,
                             resolution: normalized.local_costmap.resolution,
-                            origin: `(${normalized.local_costmap.origin.x.toFixed(3)}, ${normalized.local_costmap.origin.y.toFixed(3)})`,
+                            origin: `(${normalized.local_costmap.origin.x.toFixed(3)}, ${normalized.local_costmap.origin.y.toFixed(3)}, yaw=${normalized.local_costmap.origin.yaw.toFixed(3)})`,
                             hist: histogramCostmap(normalized.local_costmap)
                         }
                         : null
@@ -815,6 +816,16 @@
             return c;
         }
 
+        costmapLocalToWorld(origin, localX, localY) {
+            const yaw = normalizeAngle(Number(origin && origin.yaw) || 0);
+            const c = Math.cos(yaw);
+            const s = Math.sin(yaw);
+            return {
+                x: Number(origin.x || 0) + c * localX - s * localY,
+                y: Number(origin.y || 0) + s * localX + c * localY
+            };
+        }
+
         setLoading(text) {
             if (!this.loadingEl) return;
             this.loadingEl.textContent = text;
@@ -869,20 +880,29 @@
             off.height = costImage.height;
             off.getContext('2d').putImageData(costImage, 0, 0);
 
-            const origin = grid.origin || { x: 0, y: 0 };
+            const origin = grid.origin || { x: 0, y: 0, yaw: 0 };
             const res = Number(grid.resolution || viewport.yaml.resolution);
-            const topLeftWorld = {
-                x: origin.x,
-                y: origin.y + Number(grid.height) * res
-            };
+            const gridWidthM = Number(grid.width) * res;
+            const gridHeightM = Number(grid.height) * res;
+            const topLeftWorld = this.costmapLocalToWorld(origin, 0, gridHeightM);
+            const topRightWorld = this.costmapLocalToWorld(origin, gridWidthM, gridHeightM);
+            const bottomLeftWorld = this.costmapLocalToWorld(origin, 0, 0);
             const topLeftCanvas = this.worldToCanvas(topLeftWorld, viewport);
-            const widthPx = (Number(grid.width) * res / viewport.yaml.resolution) * viewport.scale;
-            const heightPx = (Number(grid.height) * res / viewport.yaml.resolution) * viewport.scale;
+            const topRightCanvas = this.worldToCanvas(topRightWorld, viewport);
+            const bottomLeftCanvas = this.worldToCanvas(bottomLeftWorld, viewport);
 
             ctx.save();
             ctx.globalAlpha = 0.55;
             ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(off, topLeftCanvas.x, topLeftCanvas.y, widthPx, heightPx);
+            ctx.setTransform(
+                (topRightCanvas.x - topLeftCanvas.x) / off.width,
+                (topRightCanvas.y - topLeftCanvas.y) / off.width,
+                (bottomLeftCanvas.x - topLeftCanvas.x) / off.height,
+                (bottomLeftCanvas.y - topLeftCanvas.y) / off.height,
+                topLeftCanvas.x,
+                topLeftCanvas.y
+            );
+            ctx.drawImage(off, 0, 0);
             ctx.restore();
         }
 
