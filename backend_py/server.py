@@ -71,6 +71,9 @@ class M20ProtocolPy:
             raise ValueError("APDU frame incomplete")
         return json.loads(frame[self.HEADER_SIZE:self.HEADER_SIZE + length].decode("utf-8"))
 
+    def find_next_header(self, buffer, start=1):
+        return buffer.find(self.HEADER, start)
+
     def build_patrol(self, type_code, command, items=None):
         return self.build_apdu({
             "PatrolDevice": {
@@ -424,6 +427,13 @@ class RobotTcpClient:
                     buffer = buffer[total:]
                     try:
                         self.on_message(self.name, self.protocol.parse_apdu(frame))
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        next_header = self.protocol.find_next_header(frame + buffer, 1)
+                        if next_header >= 0:
+                            buffer = (frame + buffer)[next_header:]
+                        else:
+                            buffer = b""
+                            break
                     except Exception as exc:
                         print(f"[{self.name}] parse error: {exc}")
         finally:
@@ -459,6 +469,16 @@ class MobileController:
         with self.clients_lock:
             self.clients.add(handler)
         handler.send_json({"type": "connected", "message": "已连接到 Python 控制服务器"})
+        if self.m20.connected:
+            handler.send_json({
+                "type": "robot_connected",
+                "message": f"已连接到M20 ({self.args.m20_host}:{self.args.m20_port})",
+            })
+        else:
+            handler.send_json({
+                "type": "robot_disconnected",
+                "message": f"未连接到M20 ({self.args.m20_host}:{self.args.m20_port})",
+            })
         handler.send_json({"type": "nav_link_status", **self.nav_status()})
         handler.send_json(self.nav_viz_status())
 
@@ -469,8 +489,16 @@ class MobileController:
     def broadcast(self, payload):
         with self.clients_lock:
             clients = list(self.clients)
+        stale = []
         for client in clients:
-            client.send_json(payload)
+            try:
+                client.send_json(payload)
+            except OSError:
+                stale.append(client)
+        if stale:
+            with self.clients_lock:
+                for client in stale:
+                    self.clients.discard(client)
 
     def nav_status(self):
         return {
@@ -523,7 +551,13 @@ class MobileController:
                 "get_nav_perception", "query_nav_status",
             }
             target = self.nav if is_nav and self.nav_route_mode == "custom" else self.m20
-            if not target.send(frame):
+            sent = target.send(frame)
+            print(
+                f"[frontend] command={msg_type} target={target.name} "
+                f"connected={target.connected} bytes={len(frame)} sent={sent}",
+                flush=True,
+            )
+            if not sent:
                 return {"type": "error", "message": f"{target.name} 未连接"}
         except Exception as exc:
             return {"type": "error", "message": f"{msg_type} 处理失败: {exc}"}
@@ -742,6 +776,9 @@ def make_http_handler(static_root, map_root):
 
         def end_headers(self):
             self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
             super().end_headers()
 
         def guess_type(self, path):

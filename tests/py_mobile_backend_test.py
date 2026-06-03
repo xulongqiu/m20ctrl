@@ -123,6 +123,38 @@ class MobileBackendTest(unittest.TestCase):
 
         self.assertFalse(client.connected)
 
+    def test_tcp_reader_resyncs_after_non_json_vendor_frame(self):
+        class ChunkSocket:
+            def __init__(self, chunks):
+                self.chunks = list(chunks)
+
+            def recv(self, _size):
+                if self.chunks:
+                    return self.chunks.pop(0)
+                return b""
+
+        protocol = M20ProtocolPy()
+        bad_body = b"\xff\xfe-not-json"
+        bad_header = bytearray(16)
+        bad_header[0:4] = protocol.HEADER
+        struct.pack_into("<H", bad_header, 4, len(bad_body))
+        good_frame = protocol.build_apdu({
+            "PatrolDevice": {
+                "Type": 100,
+                "Command": 100,
+                "Items": {},
+            }
+        })
+        received = []
+        client = RobotTcpClient("test", protocol, lambda _name, asdu: received.append(asdu))
+        client.sock = ChunkSocket([bytes(bad_header) + bad_body + good_frame])
+        client.connected = True
+
+        client._read_loop()
+
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["PatrolDevice"]["Type"], 100)
+
 
 if __name__ == "__main__":
     unittest.main()
