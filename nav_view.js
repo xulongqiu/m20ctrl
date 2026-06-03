@@ -685,7 +685,21 @@
             let text = '未连接导航视图';
             let color = '#94a3b8';
 
-            if (stats) {
+            if (snap) {
+                const gp = snap.global_path && snap.global_path.poses ? snap.global_path.poses.length : 0;
+                const lp = snap.local_path && snap.local_path.poses ? snap.local_path.poses.length : 0;
+                const cm = snap.local_costmap ? `${snap.local_costmap.width}×${snap.local_costmap.height}` : '✗';
+                const snapAge = snap.stamp ? Math.max(0, Date.now() / 1000 - snap.stamp).toFixed(1) : '--';
+                const packetInfo = stats && stats.packetCount ? `${stats.packetCount}包 · ` : '';
+                const fields = `全局路径 ${gp}点 · 局部路径 ${lp}点 · 局部代价图 ${cm}`;
+                if (snap.localized) {
+                    text = `已定位 seq=${snap.seq || 0} · ${fields} · ${packetInfo}${snapAge}s`;
+                    color = '#10b981';
+                } else {
+                    text = `未定位 (NOS map→base TF 缺失) · ${fields} · ${packetInfo}${snapAge}s`;
+                    color = '#f59e0b';
+                }
+            } else if (stats) {
                 if (!stats.listening) {
                     text = `UDP未监听 (port ${stats.port})`;
                     color = '#ef4444';
@@ -701,28 +715,11 @@
                     if (!fresh) {
                         text = `数据停顿 from ${stats.lastSender}, 上次 ${ageStr} 前`;
                         color = '#f97316';
-                    } else if (snap) {
-                        const snapAge = snap.stamp ? Math.max(0, Date.now() / 1000 - snap.stamp).toFixed(1) : '--';
-                        const gp = snap.global_path && snap.global_path.poses ? snap.global_path.poses.length : 0;
-                        const lp = snap.local_path && snap.local_path.poses ? snap.local_path.poses.length : 0;
-                        const cm = snap.local_costmap ? `${snap.local_costmap.width}×${snap.local_costmap.height}` : '✗';
-                        const fields = `全局路径 ${gp}点 · 局部路径 ${lp}点 · 局部代价图 ${cm}`;
-                        const baseInfo = `${stats.packetCount} 包 · ${snapAge}s`;
-                        if (snap.localized) {
-                            text = `已定位 seq=${snap.seq || 0} · ${fields} · ${baseInfo}`;
-                            color = '#10b981';
-                        } else {
-                            text = `未定位 (NOS map→base TF 缺失) · ${fields} · ${baseInfo}`;
-                            color = '#f59e0b';
-                        }
                     } else {
                         text = `接收中 from ${stats.lastSender}, ${stats.packetCount} 包`;
                         color = '#10b981';
                     }
                 }
-            } else if (snap) {
-                text = snap.localized ? `已定位 seq=${snap.seq || 0}` : '未定位';
-                color = snap.localized ? '#10b981' : '#f59e0b';
             }
             this.statusEl.textContent = text;
             this.statusEl.style.color = color;

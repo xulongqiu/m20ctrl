@@ -862,6 +862,921 @@
             border-radius: 2px;
             display: inline-block;
         }
+
+        .mobile-tabbar {
+            display: none;
+        }
+
+        .mobile-compact-status {
+            display: none;
+        }
+
+        .drive-overlay {
+            display: none;
+        }
+
+        .mobile-mode-float {
+            display: none;
+        }
+
+        @media (max-width: 1024px) {
+            html {
+                height: 100%;
+                background: #0b1114;
+            }
+
+            body {
+                min-height: 100%;
+                padding: 0;
+                background:
+                    linear-gradient(180deg, rgba(20, 31, 35, 0.98), rgba(8, 12, 14, 0.98)),
+                    repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 18px);
+                color: #dbe7e4;
+                overflow-x: hidden;
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            .container {
+                max-width: none;
+                width: 100%;
+                overflow-x: hidden;
+                padding: 0 10px 88px;
+            }
+
+            .header {
+                position: sticky;
+                top: 0;
+                z-index: 900;
+                margin: 0 -10px 10px;
+                padding: max(10px, env(safe-area-inset-top)) 10px 10px;
+                text-align: left;
+                background: rgba(8, 12, 14, 0.94);
+                border-bottom: 1px solid rgba(125, 211, 191, 0.2);
+                backdrop-filter: blur(12px);
+                color: #e5f7f1;
+            }
+
+            .header h1 {
+                display: none;
+            }
+
+            .mobile-compact-status {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                font-size: 14px;
+                font-weight: 800;
+                line-height: 1.15;
+                margin: 0 0 2px;
+                letter-spacing: 0;
+            }
+
+            #mobileConnMirror {
+                color: #ef4444;
+                font-size: 12px;
+                font-weight: 700;
+                white-space: nowrap;
+            }
+
+            .header p {
+                display: none;
+            }
+
+            .m20-connect-row {
+                margin-top: 8px !important;
+                display: none !important;
+                grid-template-columns: 1fr;
+                gap: 6px !important;
+                justify-content: stretch !important;
+                align-items: center !important;
+            }
+
+            .m20-connect-row > span:first-child,
+            .m20-connect-row > span:nth-of-type(2) {
+                display: none;
+            }
+
+            body.mobile-tab-log .m20-connect-row {
+                display: grid !important;
+                grid-template-columns: minmax(0, 1fr) 72px 64px 74px;
+            }
+
+            body.mobile-tab-log #m20IP {
+                grid-column: 1;
+                grid-row: 1;
+            }
+
+            body.mobile-tab-log #m20Port {
+                grid-column: 2;
+                grid-row: 1;
+            }
+
+            body.mobile-tab-log #connectM20Btn {
+                grid-column: 3;
+                grid-row: 1;
+            }
+
+            body.mobile-tab-log #connStatus {
+                grid-column: 4;
+                grid-row: 1;
+                min-height: 42px;
+                justify-content: center;
+                padding: 0 6px;
+                font-size: 10px !important;
+            }
+
+            .m20-connect-row input,
+            .m20-connect-row button {
+                width: 100% !important;
+                min-height: 42px;
+                border-radius: 6px !important;
+                font-size: 14px;
+            }
+
+            .m20-connect-row input {
+                background: #111a1d !important;
+                border-color: rgba(125, 211, 191, 0.24) !important;
+                color: #e5f7f1 !important;
+            }
+
+            #m20IP {
+                grid-column: 1;
+                grid-row: 1;
+            }
+
+            #m20Port {
+                grid-column: 1;
+                grid-row: 2;
+            }
+
+            #connectM20Btn {
+                grid-column: 1;
+                grid-row: 3;
+                background: #f2c94c !important;
+                color: #101414 !important;
+                font-weight: 700 !important;
+            }
+
+            #connStatus {
+                display: inline-flex;
+                grid-column: 1;
+                grid-row: 4;
+                min-height: 42px;
+                align-items: center;
+                justify-content: flex-start;
+                padding: 0 10px;
+                border-radius: 6px;
+                background: #151f22;
+                font-size: 11px !important;
+                white-space: nowrap;
+            }
+
+            .agora-connect-row {
+                display: none !important;
+            }
+
+            .main-grid {
+                display: block;
+                margin: 0;
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            .mobile-panel {
+                display: none;
+            }
+
+            .mobile-panel.active-mobile-panel {
+                display: block;
+            }
+
+            .panel {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+                margin: 0 0 10px;
+                padding: 12px;
+                border-radius: 8px;
+                background: #11181b;
+                border: 1px solid rgba(125, 211, 191, 0.16);
+                box-shadow: none;
+                color: #dbe7e4;
+            }
+
+            .panel-title {
+                margin-bottom: 12px;
+                color: #f4f7f5;
+                font-size: 15px;
+                letter-spacing: 0;
+            }
+
+            .panel-title::before {
+                background: #f2c94c;
+                height: 16px;
+                border-radius: 1px;
+            }
+
+            .control-section {
+                margin-bottom: 14px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+            }
+
+            .control-section.mobile-optional {
+                display: none;
+            }
+
+            .control-section:last-child {
+                border-bottom: none;
+                padding-bottom: 0;
+            }
+
+            .control-section-title {
+                color: #91aaa4;
+                font-size: 11px;
+                margin-bottom: 8px;
+                letter-spacing: 0.08em;
+            }
+
+            .button-group,
+            .button-group.two-col,
+            .camera-controls,
+            .nav-link-actions {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .button-group:has([data-usage-mode]),
+            .button-group:has([data-action]) {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .button-group.two-col {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .button-group > *,
+            .nav-link-grid > *,
+            .input-row > *,
+            .map-toolbar > * {
+                min-width: 0;
+            }
+
+            .btn {
+                min-height: 48px;
+                padding: 10px 8px;
+                border-radius: 6px;
+                background: #1a2529;
+                color: #e8f1ee;
+                border: 1px solid rgba(255,255,255,0.08);
+                font-size: 14px;
+                font-weight: 700;
+                transition: background 0.12s, border-color 0.12s, transform 0.08s;
+            }
+
+            .btn:hover {
+                transform: none;
+                background: #1a2529;
+            }
+
+            .btn:active {
+                transform: scale(0.98);
+            }
+
+            .btn.active {
+                background: #f2c94c;
+                color: #101414;
+                border-color: #f2c94c;
+            }
+
+            .btn.success {
+                background: #123329;
+                color: #86efac;
+                border-color: rgba(134, 239, 172, 0.28);
+            }
+
+            .btn.danger {
+                background: #3a1717;
+                color: #fca5a5;
+                border-color: rgba(252, 165, 165, 0.28);
+            }
+
+            .input-row,
+            .nav-link-grid,
+            .map-toolbar {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 8px !important;
+            }
+
+            .nav-panel .input-row {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
+
+            .nav-panel .control-section:has(#locationName) .input-row {
+                grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) auto !important;
+            }
+
+            .mobile-hidden {
+                display: none !important;
+            }
+
+            .mobile-protocol-row {
+                display: none !important;
+            }
+
+            .mobile-nav-link-host .nav-link-section {
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+            }
+
+            .mobile-nav-link-host:empty {
+                display: none;
+            }
+
+            .mobile-nav-task-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
+
+            .mobile-nav-status-grid {
+                display: grid;
+                grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+                gap: 6px !important;
+            }
+
+            .mobile-nav-status-grid .status-item {
+                min-height: 46px;
+                padding: 6px 4px;
+                text-align: center;
+            }
+
+            .mobile-nav-status-grid .status-label {
+                font-size: 9px;
+            }
+
+            .mobile-nav-status-grid .status-value {
+                font-size: 11px;
+            }
+
+            .mobile-nav-status-actions {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+                margin-top: 8px;
+            }
+
+            .mobile-nav-status-actions .btn {
+                float: none !important;
+                width: 100%;
+                min-height: 42px;
+                padding: 8px 10px !important;
+                margin: 0 !important;
+                font-size: 13px !important;
+            }
+
+            .mobile-map-toolbar {
+                grid-template-columns: 1fr !important;
+            }
+
+            .mobile-map-toolbar #mapFolderSelect,
+            .mobile-map-toolbar #mapFolderRestore,
+            .mobile-map-toolbar #mapFolderForget {
+                display: none !important;
+            }
+
+            .mobile-map-location-row {
+                grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr)) !important;
+            }
+
+            @media (max-width: 360px) {
+                .nav-panel .input-row,
+                .nav-link-grid,
+                .map-toolbar,
+                .button-group,
+                .button-group:has([data-usage-mode]),
+                .button-group:has([data-action]) {
+                    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                }
+
+                .nav-panel .control-section:has(#locationName) .input-row {
+                    grid-template-columns: 1fr 1fr !important;
+                }
+
+                .mobile-nav-status-grid {
+                    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                }
+
+                .mobile-map-location-row {
+                    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                }
+            }
+
+            .input-group {
+                margin-bottom: 8px;
+            }
+
+            .input-group label {
+                color: #91aaa4;
+                font-size: 11px;
+                margin-bottom: 4px;
+            }
+
+            .input-group input,
+            .input-group select {
+                max-width: 100%;
+                min-height: 42px;
+                padding: 8px 9px;
+                border-radius: 6px;
+                background: #0d1417;
+                border-color: rgba(125, 211, 191, 0.18);
+                color: #eef7f4;
+                font-size: 14px;
+            }
+
+            .input-group input:focus,
+            .input-group select:focus {
+                border-color: #f2c94c;
+                box-shadow: 0 0 0 2px rgba(242, 201, 76, 0.18);
+            }
+
+            .joystick-container {
+                margin: 10px 0 8px;
+            }
+
+            .joystick {
+                width: 100%;
+                height: 64px;
+                border-radius: 8px;
+                background: #f2c94c;
+                border: 0;
+                box-shadow: none;
+                touch-action: none;
+            }
+
+            .joystick::before {
+                content: '打开全屏双摇杆';
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #101414;
+                font-size: 16px;
+                font-weight: 900;
+            }
+
+            .joystick-axis-h,
+            .joystick-axis-v,
+            .joystick-ring,
+            .joystick-center,
+            .joystick-label {
+                display: none;
+            }
+
+            .joystick-thumb {
+                display: none;
+            }
+
+            .joystick-container + div {
+                color: #a8bbb6 !important;
+                font-size: 13px !important;
+            }
+
+            .status-section-title {
+                border-radius: 4px;
+                background: #223035 !important;
+                color: #dbe7e4 !important;
+            }
+
+            .status-grid,
+            .status-grid.three-col {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            @media (max-width: 360px) {
+                .status-grid,
+                .status-grid.three-col {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+            }
+
+            .status-item {
+                min-height: 52px;
+                padding: 8px;
+                border-radius: 6px;
+                background: #0d1417;
+                border-left: 2px solid rgba(145, 170, 164, 0.45);
+            }
+
+            .status-label {
+                color: #839892;
+                font-size: 10px;
+            }
+
+            .status-value {
+                color: #eef7f4;
+                font-size: 13px;
+                word-break: break-word;
+            }
+
+            .nav-link-status,
+            .map-folder-status {
+                min-width: 0;
+                background: #0d1417 !important;
+                color: #a8bbb6 !important;
+                border: 1px solid rgba(255,255,255,0.06);
+            }
+
+            #locationList {
+                max-height: 260px !important;
+                background: #0d1417 !important;
+                border-color: rgba(255,255,255,0.08) !important;
+            }
+
+            .loc-item {
+                min-height: 50px;
+                color: #e8f1ee;
+                border-bottom-color: rgba(255,255,255,0.07) !important;
+            }
+
+            .log-content {
+                height: calc(100vh - 180px);
+                min-height: 360px;
+                border-radius: 6px;
+                background: #050708;
+                font-size: 11px;
+            }
+
+            .floating-window {
+                width: calc(100vw - 12px) !important;
+                height: calc(100dvh - 88px - env(safe-area-inset-bottom)) !important;
+                left: 6px !important;
+                top: 6px !important;
+                min-width: 0;
+                min-height: 0;
+                border-radius: 8px;
+                resize: none;
+                border-color: rgba(242, 201, 76, 0.26);
+            }
+
+            .fw-header {
+                min-height: 44px;
+                padding: 10px 12px;
+                background: #10181b;
+                border-bottom-color: rgba(255,255,255,0.08);
+                cursor: default;
+            }
+
+            .fw-title {
+                color: #f4f7f5;
+                font-size: 14px;
+            }
+
+            .fw-close {
+                width: 36px;
+                height: 32px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                color: #fca5a5;
+                font-size: 24px;
+            }
+
+            .fw-content {
+                height: calc(100% - 44px);
+            }
+
+            .nav-view-status,
+            .nav-view-basemap,
+            .nav-view-cursor {
+                max-width: calc(100% - 20px);
+                font-size: 10px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .nav-view-basemap {
+                top: 34px;
+                left: 10px;
+                right: auto;
+            }
+
+            .nav-view-cursor {
+                top: 60px;
+                right: auto;
+                left: 10px;
+            }
+
+            .nav-view-legend {
+                display: none;
+            }
+
+            .nav-view-zoom button {
+                width: 42px;
+                height: 42px;
+            }
+
+            .mobile-tabbar {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 1200;
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0;
+                padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+                background: rgba(8, 12, 14, 0.96);
+                border-top: 1px solid rgba(125, 211, 191, 0.18);
+                backdrop-filter: blur(12px);
+            }
+
+            .mobile-tab {
+                min-height: 54px;
+                border: 0;
+                border-radius: 6px;
+                background: transparent;
+                color: #8fa39d;
+                font: inherit;
+                font-size: 12px;
+                font-weight: 700;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 3px;
+            }
+
+            .mobile-tab.active {
+                background: #f2c94c;
+                color: #101414;
+            }
+
+            .mobile-tab-icon {
+                font-size: 13px;
+                line-height: 1;
+            }
+
+            .mobile-mode-float {
+                position: fixed;
+                right: max(10px, env(safe-area-inset-right));
+                bottom: calc(74px + env(safe-area-inset-bottom));
+                z-index: 3600;
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 0;
+                min-width: 118px;
+                max-width: 148px;
+                padding: 0;
+                border: 1px solid rgba(242, 201, 76, 0.46);
+                border-radius: 8px;
+                overflow: hidden;
+                background: rgba(8, 12, 14, 0.9);
+                box-shadow: 0 10px 28px rgba(0,0,0,0.42);
+                backdrop-filter: blur(12px);
+            }
+
+            .mobile-mode-float.nav-mode {
+                border-color: rgba(239, 68, 68, 0.58);
+            }
+
+            .mobile-mode-toggle {
+                min-height: 42px;
+                border: 0;
+                border-radius: 0;
+                background: #f2c94c;
+                color: #101414;
+                font: inherit;
+                font-size: 13px;
+                font-weight: 900;
+                letter-spacing: 0;
+            }
+
+            .mobile-mode-float.nav-mode .mobile-mode-toggle {
+                background: #ef4444;
+                color: #fff5f5;
+            }
+
+            .mobile-mode-telemetry {
+                display: block;
+                padding: 5px 7px 6px;
+                color: #dbe7e4;
+                font-size: 10px;
+                font-weight: 800;
+                line-height: 1.25;
+                text-align: center;
+                white-space: nowrap;
+                letter-spacing: 0;
+            }
+
+            body.drive-open {
+                overflow: hidden;
+            }
+
+            .drive-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 3000;
+                display: none;
+                background: #070b0d;
+                color: #e9f4f1;
+                width: 100vw;
+                height: 100vh;
+                width: 100dvw;
+                height: 100dvh;
+                width: var(--drive-vw, 100dvw);
+                height: var(--drive-vh, 100dvh);
+                overflow: hidden;
+            }
+
+            .drive-overlay.active {
+                display: block;
+            }
+
+            .drive-shell {
+                position: absolute;
+                inset: 0;
+                width: var(--drive-vw, 100dvw);
+                height: var(--drive-vh, 100dvh);
+                padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+                display: grid;
+                grid-template-rows: auto 1fr;
+                gap: 10px;
+                background:
+                    radial-gradient(circle at 18% 55%, rgba(242, 201, 76, 0.1), transparent 28%),
+                    radial-gradient(circle at 82% 55%, rgba(125, 211, 191, 0.1), transparent 28%),
+                    #070b0d;
+            }
+
+            .drive-topbar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .drive-title {
+                font-size: 16px;
+                font-weight: 900;
+            }
+
+            .drive-subtitle {
+                color: #91aaa4;
+                font-size: 11px;
+                margin-top: 2px;
+            }
+
+            .drive-close {
+                min-width: 70px;
+                min-height: 40px;
+                border: 1px solid rgba(252, 165, 165, 0.32);
+                border-radius: 8px;
+                background: #3a1717;
+                color: #fca5a5;
+                font-weight: 900;
+                font-size: 14px;
+            }
+
+            .drive-controls {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                align-items: center;
+                min-height: 0;
+            }
+
+            .drive-stick-block {
+                min-width: 0;
+                height: 100%;
+                display: grid;
+                grid-template-rows: 1fr;
+                align-items: center;
+                justify-items: center;
+            }
+
+            .drive-stick {
+                width: min(42vw, 66vh);
+                height: min(42vw, 66vh);
+                min-width: 170px;
+                min-height: 170px;
+                max-width: 320px;
+                max-height: 320px;
+                position: relative;
+                border-radius: 50%;
+                border: 2px solid rgba(226, 232, 240, 0.22);
+                background:
+                    radial-gradient(circle at center, rgba(242, 201, 76, 0.15) 0 13%, transparent 14%),
+                    #111a1d;
+                box-shadow: inset 0 2px 4px rgba(255,255,255,0.03), 0 18px 36px rgba(0,0,0,0.38);
+                touch-action: none;
+                user-select: none;
+            }
+
+            .drive-stick-axis {
+                position: absolute;
+                background: rgba(189, 210, 204, 0.28);
+                pointer-events: none;
+            }
+
+            .drive-stick-axis.vertical {
+                top: 10%;
+                bottom: 10%;
+                left: 50%;
+                width: 1px;
+            }
+
+            .drive-stick-axis.horizontal {
+                left: 10%;
+                right: 10%;
+                top: 50%;
+                height: 1px;
+            }
+
+            .drive-stick-ring {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                border: 1px dashed rgba(203, 213, 225, 0.36);
+                border-radius: 50%;
+                pointer-events: none;
+            }
+
+            .drive-stick-ring.small {
+                width: 38%;
+                height: 38%;
+            }
+
+            .drive-stick-ring.mid {
+                width: 70%;
+                height: 70%;
+            }
+
+            .drive-stick-label {
+                position: absolute;
+                z-index: 2;
+                padding: 2px 7px;
+                border-radius: 4px;
+                background: rgba(7, 11, 13, 0.72);
+                color: #dbe7e4;
+                font-size: 12px;
+                font-weight: 900;
+                pointer-events: none;
+            }
+
+            .drive-stick-label.top {
+                top: 8px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            .drive-stick-label.bottom {
+                bottom: 8px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            .drive-stick-label.left {
+                left: 8px;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+
+            .drive-stick-label.right {
+                right: 8px;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+
+            .drive-stick-thumb {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 62px;
+                height: 62px;
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                background: #f2c94c;
+                border: 2px solid #070b0d;
+                box-shadow: 0 8px 22px rgba(242, 201, 76, 0.28);
+                pointer-events: none;
+            }
+
+            @media (orientation: portrait) {
+                .drive-shell {
+                    transform: translate(-50%, -50%) rotate(90deg);
+                    transform-origin: center;
+                    width: var(--drive-vh, 100dvh);
+                    height: var(--drive-vw, 100dvw);
+                    left: 50%;
+                    top: 50%;
+                    inset: auto;
+                }
+            }
+        }
     </style>
 </head>
 
@@ -870,7 +1785,11 @@
         <div class="header">
             <h1>🤖 M20机器狗上位机控制</h1>
             <p>云深处M20机器狗远程控制系统</p>
-            <div
+            <div class="mobile-compact-status">
+                <span>M20 控制台</span>
+                <span id="mobileConnMirror">✗ 未连接</span>
+            </div>
+            <div class="m20-connect-row"
                 style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
                 <span style="color: white; font-size: 12px;">M20地址:</span>
                 <input type="text" id="m20IP" placeholder="10.21.31.103" value="10.21.31.103"
@@ -883,7 +1802,7 @@
                 <span id="connStatus" style="color: #ef4444; font-size: 12px; font-weight: 500;">✗ 未连接</span>
             </div>
             
-            <div
+            <div class="agora-connect-row"
                 style="margin-top: 10px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,0.1); padding: 8px; border-radius: 8px;">
                 <span style="color: white; font-size: 12px;">声网远程:</span>
                 <div id="agoraConfigInfo" style="color: rgba(255,255,255,0.7); font-size: 11px; display: flex; flex-direction: column; gap: 2px;">
@@ -897,7 +1816,7 @@
 
         <div class="main-grid">
             <!-- 状态查询面板 -->
-            <div class="panel">
+            <div class="panel status-panel mobile-panel" data-mobile-panel="status">
                 <div class="panel-title">状态查询</div>
 
                 <!-- 基础状态 -->
@@ -1106,7 +2025,7 @@
             </div>
 
             <!-- 运动控制面板 -->
-            <div class="panel">
+            <div class="panel motion-panel mobile-panel active-mobile-panel" data-mobile-panel="motion">
                 <div class="panel-title">运动控制</div>
 
                 <!-- 1. 使用模式 -->
@@ -1150,7 +2069,7 @@
                 </div>
 
                 <!-- 5. 摄像头控制 -->
-                <div class="control-section">
+                <div class="control-section mobile-optional">
                     <div class="control-section-title">摄像头预览</div>
                     <div class="ffmpeg-warning" id="ffmpegWarning">
                         ⚠️ 警告: 后端未检测到 ffmpeg，视频预览无法使用。
@@ -1187,10 +2106,10 @@
             </div>
 
             <!-- 导航控制面板 -->
-            <div class="panel">
+            <div class="panel nav-panel mobile-panel" data-mobile-panel="nav">
                 <div class="panel-title">导航控制</div>
 
-                <div class="control-section">
+                <div id="navLinkSection" class="control-section nav-link-section">
                     <div class="control-section-title">导航链路</div>
                     <div class="nav-link-grid">
                         <div class="input-group">
@@ -1215,19 +2134,22 @@
                     </div>
                     <div class="nav-link-actions">
                         <button class="btn" id="applyNavLink">应用链路</button>
-                        <button class="btn success" id="openNavView">打开导航视图</button>
                     </div>
                     <div class="nav-link-status" id="navLinkStatus">导航链路: 自研导航</div>
                 </div>
 
-                <div class="control-section">
-                    <div class="control-section-title">导航任务 - 目标点设置</div>
-                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-                        <div class="input-group">
+                <div class="control-section nav-view-entry-section">
+                    <button class="btn success" id="openNavView" style="width:100%;">打开导航视图</button>
+                </div>
+
+                <div id="navTaskSection" class="control-section nav-task-section">
+                    <div class="control-section-title">导航任务</div>
+                    <div class="input-row mobile-protocol-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                        <div class="input-group mobile-hidden">
                             <label>目标点编号</label>
-                            <input type="number" id="navPointID" placeholder="0" min="0" step="1">
+                            <input type="number" id="navPointID" value="0" placeholder="0" min="0" step="1">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group mobile-hidden">
                             <label>点类型</label>
                             <select id="navPointType">
                                 <option value="0">过渡点</option>
@@ -1235,12 +2157,12 @@
                                 <option value="3">充电点</option>
                             </select>
                         </div>
-                        <div class="input-group">
+                        <div class="input-group mobile-hidden">
                             <label>底图编号</label>
-                            <input type="number" id="navMapID" placeholder="0" min="0" step="1">
+                            <input type="number" id="navMapID" value="0" placeholder="0" min="0" step="1">
                         </div>
                     </div>
-                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                    <div class="input-row mobile-nav-task-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <div class="input-group">
                             <label>目标X (m)</label>
                             <input type="number" id="navTargetX" placeholder="0.0" step="0.1">
@@ -1254,11 +2176,7 @@
                             <input type="number" id="navTargetYaw" placeholder="0" step="0.01">
                         </div>
                     </div>
-                </div>
-
-                <div class="control-section">
-                    <div class="control-section-title">导航任务 - 路径属性</div>
-                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                    <div class="input-row mobile-nav-task-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <div class="input-group">
                             <label>步态</label>
                             <select id="navGait">
@@ -1274,16 +2192,14 @@
                                 <option value="1.5">高速</option>
                             </select>
                         </div>
-                        <div class="input-group">
+                        <div class="input-group mobile-hidden">
                             <label>运动方式</label>
                             <select id="navManner">
                                 <option value="0" selected>前进行走</option>
                                 <option value="1">倒退行走</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="input-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-                        <div class="input-group">
+                        <div class="input-group mobile-hidden">
                             <label>导航方式</label>
                             <select id="navMode">
                                 <option value="0" selected>直线导航</option>
@@ -1297,7 +2213,6 @@
                                 <option value="1">关闭</option>
                             </select>
                         </div>
-                        <div class="input-group"></div>
                     </div>
                 </div>
 
@@ -1334,13 +2249,8 @@
                     <div class="control-section-title">导航状态
                         <span id="navStatusSource"
                             style="margin-left:8px;padding:2px 8px;font-size:11px;border-radius:10px;background:#fee2e2;color:#991b1b;vertical-align:middle;">来源: 自研(未连接)</span>
-                        <button class="btn" id="refreshNavStatus"
-                            style="float:right;padding:2px 10px;font-size:12px;">刷新</button>
-                        <button class="btn success" id="locFillCurrent"
-                            title="把当前地图位置填到下方地点输入框（不写入文件）"
-                            style="float:right;padding:2px 10px;font-size:12px;margin-right:6px;">📍 记录当前位置</button>
                     </div>
-                    <div class="status-grid three-col">
+                    <div class="status-grid three-col mobile-nav-status-grid">
                         <div class="status-item"><span class="status-label">地图X</span><span class="status-value"
                                 id="navPosX">--</span></div>
                         <div class="status-item"><span class="status-label">地图Y</span><span class="status-value"
@@ -1354,18 +2264,25 @@
                         <div class="status-item"><span class="status-label">任务状态</span><span class="status-value"
                                 id="navTaskStatus">--</span></div>
                     </div>
+                    <div class="mobile-nav-status-actions">
+                        <button class="btn" id="refreshNavStatus"
+                            style="padding:2px 10px;font-size:12px;">刷新</button>
+                        <button class="btn success" id="locFillCurrent"
+                            title="把当前地图位置填到下方地点输入框（不写入文件）"
+                            style="padding:2px 10px;font-size:12px;">记录当前位置</button>
+                    </div>
                 </div>
 
                 <!-- 地图管理 -->
                 <div class="control-section">
                     <div class="control-section-title">地图管理</div>
-                    <div class="map-toolbar">
+                    <div class="map-toolbar mobile-map-toolbar">
                         <button class="btn" id="mapFolderSelect">选择地图文件夹</button>
                         <button class="btn" id="mapFolderRestore" style="display:none;">恢复上次</button>
                         <button class="btn" id="mapFolderForget" style="display:none;" title="清除上次地图缓存">清除缓存</button>
                         <div class="map-folder-status" id="mapFolderStatus">未选择地图文件夹</div>
                     </div>
-                    <div class="input-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;">
+                    <div class="input-row mobile-map-location-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;">
                         <div class="input-group">
                             <label>地点名称</label>
                             <input type="text" id="locName" placeholder="输入名称">
@@ -1394,13 +2311,74 @@
             </div>
 
             <!-- 日志面板 -->
-            <div class="panel log-panel">
+            <div class="panel log-panel mobile-panel" data-mobile-panel="log">
                 <div class="panel-title">通信日志</div>
+                <div id="mobileNavLinkHost" class="mobile-nav-link-host"></div>
                 <div class="log-content" id="logContent">
                     <div class="log-item">
                         <span class="log-time">[00:00:00]</span>
                         <span class="log-type info">INFO</span>
                         <span>系统已启动，等待连接...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="mobile-tabbar" aria-label="手机主功能切换">
+            <button class="mobile-tab active" type="button" data-target-panel="motion">
+                <span class="mobile-tab-icon">◆</span>
+                <span>运动</span>
+            </button>
+            <button class="mobile-tab" type="button" data-target-panel="nav">
+                <span class="mobile-tab-icon">◇</span>
+                <span>导航</span>
+            </button>
+            <button class="mobile-tab" type="button" data-target-panel="status">
+                <span class="mobile-tab-icon">●</span>
+                <span>状态</span>
+            </button>
+            <button class="mobile-tab" type="button" data-target-panel="log">
+                <span class="mobile-tab-icon">▣</span>
+                <span>日志</span>
+            </button>
+        </nav>
+    </div>
+
+    <div id="mobileModeFloat" class="mobile-mode-float" aria-live="polite">
+        <button type="button" id="mobileModeToggle" class="mobile-mode-toggle">常规模式</button>
+        <span id="mobileModeTelemetry" class="mobile-mode-telemetry">Vx -- / Vy -- / Wz --</span>
+    </div>
+
+    <div id="driveOverlay" class="drive-overlay" aria-hidden="true">
+        <div class="drive-shell">
+            <div class="drive-topbar">
+                <div>
+                    <div class="drive-title">运动控制</div>
+                    <div class="drive-subtitle">左摇杆: 前进/后退 · 右摇杆: 左右转</div>
+                </div>
+                <button type="button" class="drive-close" id="driveClose">退出</button>
+            </div>
+            <div class="drive-controls">
+                <div class="drive-stick-block">
+                    <div class="drive-stick" id="driveLeftStick" data-axis="left">
+                        <div class="drive-stick-axis vertical"></div>
+                        <div class="drive-stick-axis horizontal"></div>
+                        <div class="drive-stick-ring small"></div>
+                        <div class="drive-stick-ring mid"></div>
+                        <div class="drive-stick-label top">前</div>
+                        <div class="drive-stick-label bottom">后</div>
+                        <div class="drive-stick-thumb"></div>
+                    </div>
+                </div>
+                <div class="drive-stick-block">
+                    <div class="drive-stick" id="driveRightStick" data-axis="right">
+                        <div class="drive-stick-axis vertical"></div>
+                        <div class="drive-stick-axis horizontal"></div>
+                        <div class="drive-stick-ring small"></div>
+                        <div class="drive-stick-ring mid"></div>
+                        <div class="drive-stick-label left">左转</div>
+                        <div class="drive-stick-label right">右转</div>
+                        <div class="drive-stick-thumb"></div>
                     </div>
                 </div>
             </div>
@@ -2090,6 +3068,7 @@
                     document.querySelectorAll('[data-usage-mode]').forEach(b => b.classList.remove('active'));
                     const modeBtn = document.querySelector(`[data-usage-mode="${d.controlUsageMode}"]`);
                     if (modeBtn) modeBtn.classList.add('active');
+                    updateMobileModeFloat(d.controlUsageMode);
                 }
 
                 // 2. 同步运动状态 (MotionState: 1=stand, 4=down, 6=walk)
@@ -2123,6 +3102,7 @@
                 this._set('sOmegaZ', f2(d.omegaZ) + ' rad/s');
                 this._set('sLinearX', f2(d.linearX) + ' m/s');
                 this._set('sLinearY', f2(d.linearY) + ' m/s');
+                updateMobileModeTelemetry(d);
                 this._set('sHeight', f2(d.height) + ' m');
                 this._set('sRemainMile', d.remainMile != null ? d.remainMile.toFixed(1) + ' km' : '-- km');
             }
@@ -2212,10 +3192,15 @@
 
             updateConnectionStatus(connected) {
                 const statusEl = document.getElementById('connStatus');
+                const mobileStatusEl = document.getElementById('mobileConnMirror');
                 const btn = document.getElementById('connectM20Btn');
                 if (connected) {
                     statusEl.textContent = '✓ 已连接';
                     statusEl.style.color = '#10b981';
+                    if (mobileStatusEl) {
+                        mobileStatusEl.textContent = '✓ 已连接';
+                        mobileStatusEl.style.color = '#10b981';
+                    }
                     if (btn) {
                         btn.textContent = '已连接';
                         btn.style.background = '#10b981';
@@ -2224,6 +3209,10 @@
                 } else {
                     statusEl.textContent = '✗ 未连接';
                     statusEl.style.color = '#ef4444';
+                    if (mobileStatusEl) {
+                        mobileStatusEl.textContent = '✗ 未连接';
+                        mobileStatusEl.style.color = '#ef4444';
+                    }
                     if (btn) {
                         btn.textContent = '连接';
                         btn.style.background = '#667eea';
@@ -2473,6 +3462,13 @@
             const navWin = document.getElementById('navViewWindow');
             const ctrlPanel = document.getElementById('navRouteMode')?.closest('.panel');
             if (!navWin || !ctrlPanel) return;
+            if (window.matchMedia && window.matchMedia('(max-width: 1024px)').matches) {
+                navWin.style.left = '6px';
+                navWin.style.top = '6px';
+                navWin.style.width = 'calc(100vw - 12px)';
+                navWin.style.height = 'calc(100dvh - 88px - env(safe-area-inset-bottom))';
+                return;
+            }
             const rect = ctrlPanel.getBoundingClientRect();
             const margin = 8;
             const width = Math.max(400, Math.floor(rect.left - margin * 2));
@@ -2538,8 +3534,99 @@
 
         const logger = new Logger('logContent');
         window.logger = logger;
+        const usageModeLabels = {
+            0: '常规模式',
+            1: '导航模式',
+            2: '辅助模式'
+        };
+        let currentUsageMode = 0;
+
+        function setMobilePanel(panelName) {
+            document.querySelectorAll('.mobile-panel').forEach((panel) => {
+                panel.classList.toggle('active-mobile-panel', panel.dataset.mobilePanel === panelName);
+            });
+            document.querySelectorAll('.mobile-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.targetPanel === panelName);
+            });
+            document.body.classList.remove('mobile-tab-motion', 'mobile-tab-nav', 'mobile-tab-status', 'mobile-tab-log');
+            document.body.classList.add(`mobile-tab-${panelName}`);
+            window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+
+        const navLinkSection = document.getElementById('navLinkSection');
+        const navLinkDesktopAnchor = document.createComment('nav-link-desktop-anchor');
+        if (navLinkSection?.parentNode) {
+            navLinkSection.parentNode.insertBefore(navLinkDesktopAnchor, navLinkSection);
+        }
+
+        function placeNavLinkSection() {
+            if (!navLinkSection) return;
+            const mobileHost = document.getElementById('mobileNavLinkHost');
+            if (isMobileLayout()) {
+                mobileHost?.appendChild(navLinkSection);
+            } else if (navLinkDesktopAnchor.parentNode) {
+                navLinkDesktopAnchor.parentNode.insertBefore(navLinkSection, navLinkDesktopAnchor.nextSibling);
+            }
+        }
+
+        document.querySelectorAll('.mobile-tab').forEach((tab) => {
+            tab.addEventListener('click', () => setMobilePanel(tab.dataset.targetPanel));
+        });
+
+        if (window.matchMedia && window.matchMedia('(max-width: 1024px)').matches) {
+            setMobilePanel('motion');
+        }
+        placeNavLinkSection();
+        window.addEventListener('resize', placeNavLinkSection);
+        window.addEventListener('orientationchange', () => setTimeout(placeNavLinkSection, 150));
 
         // 虚拟摇杆
+        function isMobileLayout() {
+            return window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
+        }
+
+        function updateMobileModeFloat(mode) {
+            const floatEl = document.getElementById('mobileModeFloat');
+            const toggleEl = document.getElementById('mobileModeToggle');
+            if (!floatEl || !toggleEl) return;
+            currentUsageMode = Number.isFinite(mode) ? mode : currentUsageMode;
+            floatEl.classList.toggle('nav-mode', currentUsageMode === 1);
+            toggleEl.textContent = usageModeLabels[currentUsageMode] || `模式 ${currentUsageMode}`;
+            toggleEl.title = currentUsageMode === 1 ? '点击切回常规模式' : '点击切到导航模式';
+        }
+
+        function updateMobileModeTelemetry(d) {
+            const telemetryEl = document.getElementById('mobileModeTelemetry');
+            if (!telemetryEl) return;
+            const f2 = (v) => v != null && Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '--';
+            telemetryEl.textContent = `Vx ${f2(d.linearX)} / Vy ${f2(d.linearY)} / Wz ${f2(d.omegaZ)}`;
+        }
+
+        function sendAxisZero() {
+            return connManager.send({
+                type: 'axis_control',
+                axes: { X: 0, Y: 0, Z: 0, Roll: 0, Pitch: 0, Yaw: 0 }
+            });
+        }
+
+        function switchUsageMode(mode, label) {
+            const nextMode = Number(mode);
+            if (nextMode === 0) {
+                sendAxisZero();
+            }
+            document.querySelectorAll('[data-usage-mode]').forEach(b => b.classList.remove('active'));
+            const targetBtn = document.querySelector(`[data-usage-mode="${nextMode}"]`);
+            if (targetBtn) targetBtn.classList.add('active');
+            updateMobileModeFloat(nextMode);
+            const msg = { type: 'usage_mode', mode: nextMode };
+            if (connManager.send(msg)) {
+                logger.send(`使用模式切换: ${label || usageModeLabels[nextMode] || nextMode}`);
+                return true;
+            }
+            logger.error('未连接到服务器');
+            return false;
+        }
+
         class Joystick {
             constructor(elementId) {
                 this.element = document.getElementById(elementId);
@@ -2559,6 +3646,12 @@
             }
 
             start(e) {
+                if (isMobileLayout() && window.driveController) {
+                    if (e.cancelable) e.preventDefault();
+                    window.driveController.open();
+                    return;
+                }
+                if (e.cancelable) e.preventDefault();
                 this.isActive = true;
                 this.element.classList.add('active');
                 this.move(e);
@@ -2566,6 +3659,7 @@
 
             move(e) {
                 if (!this.isActive) return;
+                if (e.cancelable) e.preventDefault();
 
                 const rect = this.element.getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
@@ -2635,11 +3729,212 @@
 
         const joystick = new Joystick('joystick');
 
+        class DriveStick {
+            constructor(elementId, mode, onChange) {
+                this.element = document.getElementById(elementId);
+                this.thumb = this.element.querySelector('.drive-stick-thumb');
+                this.mode = mode;
+                this.onChange = onChange;
+                this.pointerId = null;
+                this.value = 0;
+
+                this.element.addEventListener('pointerdown', (e) => this.start(e));
+                this.element.addEventListener('pointermove', (e) => this.move(e));
+                this.element.addEventListener('pointerup', (e) => this.end(e));
+                this.element.addEventListener('pointercancel', (e) => this.end(e));
+            }
+
+            start(e) {
+                e.preventDefault();
+                this.pointerId = e.pointerId;
+                this.element.setPointerCapture?.(e.pointerId);
+                this.updateFromEvent(e);
+            }
+
+            move(e) {
+                if (this.pointerId !== e.pointerId) return;
+                e.preventDefault();
+                this.updateFromEvent(e);
+            }
+
+            end(e) {
+                if (this.pointerId !== e.pointerId) return;
+                e.preventDefault();
+                this.reset();
+            }
+
+            reset() {
+                this.pointerId = null;
+                this.value = 0;
+                this.thumb.style.left = '50%';
+                this.thumb.style.top = '50%';
+                this.onChange(this.mode, 0);
+            }
+
+            updateFromEvent(e) {
+                const rect = this.element.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const max = Math.max(1, rect.width / 2 - 30);
+                let dx = e.clientX - cx;
+                let dy = e.clientY - cy;
+                const distance = Math.hypot(dx, dy);
+                if (distance > max) {
+                    dx = (dx / distance) * max;
+                    dy = (dy / distance) * max;
+                }
+                const x = Math.max(-1, Math.min(1, dx / max));
+                const y = Math.max(-1, Math.min(1, -dy / max));
+                this.value = this.mode === 'left' ? y : x;
+                if (this.mode === 'left') {
+                    this.thumb.style.left = '50%';
+                    this.thumb.style.top = `${50 - this.value * 40}%`;
+                } else {
+                    this.thumb.style.left = `${50 + this.value * 40}%`;
+                    this.thumb.style.top = '50%';
+                }
+                this.onChange(this.mode, this.value);
+            }
+        }
+
+        const DRIVE_YAW_MAX = 1.0;
+
+        class DriveController {
+            constructor() {
+                this.overlay = document.getElementById('driveOverlay');
+                this.closeBtn = document.getElementById('driveClose');
+                this.x = 0;
+                this.yaw = 0;
+                this.timer = null;
+                this.isOpen = false;
+                this.left = new DriveStick('driveLeftStick', 'left', (mode, value) => this.setValue(mode, value));
+                this.right = new DriveStick('driveRightStick', 'right', (mode, value) => this.setValue(mode, value));
+                this.closeBtn?.addEventListener('click', () => this.close());
+                window.addEventListener('resize', () => this.scheduleViewportRefresh());
+                window.visualViewport?.addEventListener('resize', () => this.scheduleViewportRefresh());
+                window.visualViewport?.addEventListener('scroll', () => this.scheduleViewportRefresh());
+                window.addEventListener('orientationchange', () => this.scheduleViewportRefresh());
+                window.addEventListener('focus', () => this.scheduleViewportRefresh());
+                window.addEventListener('pageshow', () => this.scheduleViewportRefresh());
+                document.addEventListener('fullscreenchange', () => this.scheduleViewportRefresh());
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden) {
+                        this.resetSticks();
+                        this.scheduleViewportRefresh();
+                    }
+                });
+            }
+
+            open() {
+                if (!this.overlay) return;
+                this.isOpen = true;
+                this.overlay.classList.add('active');
+                this.overlay.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('drive-open');
+                this.scheduleViewportRefresh();
+                this.startSending();
+                const shell = this.overlay.querySelector('.drive-shell');
+                shell?.requestFullscreen?.().catch(() => {});
+                screen.orientation?.lock?.('landscape').catch(() => {});
+            }
+
+            close() {
+                if (!this.overlay) return;
+                this.isOpen = false;
+                this.stopSending();
+                this.x = 0;
+                this.yaw = 0;
+                this.resetSticks();
+                this.updateLabels();
+                this.overlay.classList.remove('active');
+                this.overlay.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('drive-open');
+                if (document.fullscreenElement) {
+                    document.exitFullscreen?.().catch(() => {});
+                }
+                screen.orientation?.unlock?.();
+                this.sendZero();
+            }
+
+            refreshViewport() {
+                if (!this.overlay || !this.isOpen) return;
+                const vw = Math.round(Math.max(
+                    window.visualViewport?.width || 0,
+                    window.innerWidth || 0,
+                    document.documentElement.clientWidth || 0
+                ));
+                const vh = Math.round(Math.max(
+                    window.visualViewport?.height || 0,
+                    window.innerHeight || 0,
+                    document.documentElement.clientHeight || 0
+                ));
+                if (!vw || !vh) return;
+                this.overlay.style.setProperty('--drive-vw', `${vw}px`);
+                this.overlay.style.setProperty('--drive-vh', `${vh}px`);
+            }
+
+            scheduleViewportRefresh() {
+                if (!this.isOpen) return;
+                [0, 120, 320, 700].forEach((delay) => {
+                    setTimeout(() => this.refreshViewport(), delay);
+                });
+            }
+
+            resetSticks() {
+                this.left?.reset();
+                this.right?.reset();
+            }
+
+            setValue(mode, value) {
+                if (mode === 'left') this.x = value;
+                if (mode === 'right') this.yaw = -value * DRIVE_YAW_MAX;
+                this.updateLabels();
+            }
+
+            updateLabels() {
+            }
+
+            startSending() {
+                if (this.timer) return;
+                this.timer = setInterval(() => this.sendAxis(), AXIS_SEND_INTERVAL);
+            }
+
+            stopSending() {
+                if (!this.timer) return;
+                clearInterval(this.timer);
+                this.timer = null;
+            }
+
+            sendAxis() {
+                connManager.send({
+                    type: 'axis_control',
+                    axes: {
+                        X: Number(this.x.toFixed(2)),
+                        Y: 0.0,
+                        Z: 0.0,
+                        Roll: 0.0,
+                        Pitch: 0.0,
+                        Yaw: Number(this.yaw.toFixed(2))
+                    }
+                });
+            }
+
+            sendZero() {
+                connManager.send({
+                    type: 'axis_control',
+                    axes: { X: 0, Y: 0, Z: 0, Roll: 0, Pitch: 0, Yaw: 0 }
+                });
+            }
+        }
+
+        window.driveController = new DriveController();
+
         // 摇杆轴控制 - 协议1.2.5要求20Hz发送频率
         let axisTimer = null;
         const AXIS_SEND_INTERVAL = 50; // 20Hz = 50ms
 
         function startAxisSending() {
+            if (isMobileLayout()) return;
             if (axisTimer) return;
             axisTimer = setInterval(() => {
                 if (!joystick.isActive) return;
@@ -2696,26 +3991,30 @@
             }
         });
 
+        function defaultBackendUrl() {
+            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+                const wsScheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                return `${wsScheme}//${window.location.hostname}:8080`;
+            }
+            return 'ws://localhost:8080';
+        }
+
         // 页面加载时自动连接后端
         window.addEventListener('load', function () {
             setTimeout(() => {
-                connManager.connect('ws://localhost:8080');
+                connManager.connect(defaultBackendUrl());
             }, 500);
         });
 
         // 使用模式切换
         document.querySelectorAll('[data-usage-mode]').forEach(btn => {
             btn.addEventListener('click', function () {
-                document.querySelectorAll('[data-usage-mode]').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                const mode = parseInt(this.dataset.usageMode);
-                const msg = { type: 'usage_mode', mode: mode };
-                if (connManager.send(msg)) {
-                    logger.send(`使用模式切换: ${this.textContent}`);
-                } else {
-                    logger.error('未连接到服务器');
-                }
+                switchUsageMode(parseInt(this.dataset.usageMode), this.textContent);
             });
+        });
+
+        document.getElementById('mobileModeToggle')?.addEventListener('click', function () {
+            switchUsageMode(currentUsageMode === 1 ? 0 : 1);
         });
 
         // 运动状态控制
@@ -2833,7 +4132,7 @@
                         PosZ: 0,
                         AngleYaw: parseFloat(yaw),
                         Gait: parseInt(gait),
-                        Speed: parseInt(speed),
+                        Speed: parseFloat(speed),
                         Manner: parseInt(manner),
                         NavMode: parseInt(navMode),
                         ObsMode: parseInt(obsMode)
@@ -3070,11 +4369,52 @@
             });
         }
 
+        async function loadHttpMapIfAvailable() {
+            if (!(window.location.protocol === 'http:' || window.location.protocol === 'https:')) return false;
+            try {
+                const pgmResp = await fetch('/map/occ_grid.pgm', { cache: 'no-store' });
+                if (!pgmResp.ok) {
+                    logger.info('HTTP 地图未加载: /map/occ_grid.pgm 不存在');
+                    return false;
+                }
+                const pgm = window.M20Map.parsePgmBytes(await pgmResp.arrayBuffer());
+                let yaml = null;
+                const yamlResp = await fetch('/map/occ_grid.yaml', { cache: 'no-store' });
+                if (yamlResp.ok) {
+                    yaml = window.M20Map.parseOccupancyGridYaml(await yamlResp.text());
+                } else {
+                    logger.info('HTTP 地图未找到 occ_grid.yaml，导航视图世界坐标不可用');
+                }
+                const baseMap = { pgm, yaml, folderName: 'NOS /map' };
+                mapManager.baseMap = baseMap;
+                mapManager.folderName = 'NOS /map';
+                mapManager.setStatus('已加载 NOS 地图: /map');
+                if (window.navView) window.navView.setBaseMap(baseMap);
+
+                const locResp = await fetch('/map/locations.json', { cache: 'no-store' });
+                if (locResp.ok) {
+                    const locations = await locResp.json();
+                    if (Array.isArray(locations)) {
+                        mapManager.setLocations(locations);
+                        connManager.renderLocationList(locations);
+                        if (window.navView) window.navView.setLocations(locations);
+                    }
+                }
+                logger.info('已从 NOS HTTP 服务加载地图底图');
+                return true;
+            } catch (err) {
+                logger.error(`HTTP 地图加载失败: ${err.message}`);
+                return false;
+            }
+        }
+
         // 页面加载后尝试静默恢复上次选择的地图文件夹。
         // File System Access 权限策略：refresh 后通常会丢失 readwrite 权限，
         // 这种情况下不会弹窗，仅显示「恢复上次」按钮等待用户点击授权。
         (async () => {
             try {
+                const loadedHttpMap = await loadHttpMapIfAvailable();
+                if (loadedHttpMap) return;
                 const result = await mapManager.restoreCachedFolder({ promptIfNeeded: false });
                 if (result.restored) {
                     logger.info(`已自动恢复上次地图文件夹: ${result.name}`);
