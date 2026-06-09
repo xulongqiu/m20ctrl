@@ -545,7 +545,7 @@ class ControllerServer {
                     break;
 
                 case 'light_control':
-                    this.handleLightControl(data.light, data.state);
+                    this.handleLightControl(data.light, data.state, data);
                     break;
 
                 case 'nav_task':
@@ -659,7 +659,7 @@ class ControllerServer {
     /**
      * 处理灯光控制
      */
-    handleLightControl(light, state) {
+    handleLightControl(light, state, payload = null) {
         if (!this.m20Client.isConnected) {
             this.broadcastToClients({
                 type: 'error',
@@ -668,7 +668,7 @@ class ControllerServer {
             return;
         }
 
-        const buffer = this.protocol.buildLightControl(light, state);
+        const buffer = this.protocol.buildLightControl(light, state, payload);
         this.m20Client.send(buffer);
         console.log(`[Server] 已发送灯光控制命令: ${light} ${state ? 'ON' : 'OFF'}`);
     }

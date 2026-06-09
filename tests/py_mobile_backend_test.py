@@ -29,6 +29,7 @@ class MobileBackendTest(unittest.TestCase):
             nav_viz_host = "127.0.0.1"
             nav_viz_port = 30013
             nav_viz_register_port = 30012
+            map_root = tempfile.mkdtemp()
 
         return Args()
 
@@ -154,6 +155,125 @@ class MobileBackendTest(unittest.TestCase):
 
         self.assertEqual(len(received), 1)
         self.assertEqual(received[0]["PatrolDevice"]["Type"], 100)
+
+    def test_stale_frontend_command_is_dropped_before_tcp_send(self):
+        controller = MobileController(self.make_args())
+        sends = []
+        controller.m20.connected = True
+        controller.m20.send = lambda frame: sends.append(frame) or True
+        now_ms = int(__import__("time").time() * 1000)
+
+        stale = controller.handle_message({
+            "type": "motion_control",
+            "action": "stand",
+            "clientTs": now_ms - 6000,
+        })
+        skewed_but_accepted = controller.handle_message({
+            "type": "motion_control",
+            "action": "stand",
+            "clientTs": now_ms - 2500,
+        })
+        fresh = controller.handle_message({
+            "type": "motion_control",
+            "action": "stand",
+            "clientTs": now_ms,
+        })
+
+        self.assertEqual(stale["type"], "command_dropped")
+        self.assertEqual(len(sends), 2)
+        self.assertIsNone(skewed_but_accepted)
+        self.assertIsNone(fresh)
+
+    def test_broadcast_removes_dead_websocket_clients(self):
+        class DeadClient:
+            def send_json(self, _payload):
+                raise OSError("broken pipe")
+
+        class LiveClient:
+            def __init__(self):
+                self.payloads = []
+
+            def send_json(self, payload):
+                self.payloads.append(payload)
+
+        controller = MobileController(self.make_args())
+        dead = DeadClient()
+        live = LiveClient()
+        controller.clients.update({dead, live})
+
+        controller.broadcast({"type": "robot_status"})
+
+        self.assertNotIn(dead, controller.clients)
+        self.assertIn(live, controller.clients)
+        self.assertEqual(live.payloads, [{"type": "robot_status"}])
+
+    def test_light_control_preserves_full_front_back_state(self):
+        protocol = M20ProtocolPy()
+
+        frame = protocol.build_light_control({
+            "light": "rear",
+            "state": True,
+            "front": True,
+            "back": True,
+        })
+        parsed = protocol.parse_apdu(frame)
+        items = parsed["PatrolDevice"]["Items"]
+
+        self.assertEqual(items["Front"], 1)
+        self.assertEqual(items["Back"], 1)
+
+    def test_new_websocket_receives_cached_nav_view_snapshot(self):
+        class Handler:
+            def __init__(self):
+                self.messages = []
+
+            def send_json(self, payload):
+                self.messages.append(payload)
+
+        controller = MobileController(self.make_args())
+        controller.record_nav_view({"pose": {"x": 1.0}}, ("127.0.0.1", 30013))
+        handler = Handler()
+
+        controller.add_ws(handler)
+
+        nav_messages = [msg for msg in handler.messages if msg.get("type") == "nav_view"]
+        self.assertEqual(len(nav_messages), 1)
+        self.assertEqual(nav_messages[0]["data"]["pose"]["x"], 1.0)
+
+    def test_locations_are_saved_under_map_root(self):
+        controller = MobileController(self.make_args())
+        broadcasts = []
+        controller.broadcast = lambda payload: broadcasts.append(payload)
+
+        controller.save_location({
+            "name": "dock",
+            "posX": -1.25,
+            "posY": 2.5,
+            "yaw": -0.3,
+        })
+        locations = controller.load_locations()
+
+        self.assertEqual(len(locations), 1)
+        self.assertEqual(locations[0]["name"], "dock")
+        self.assertEqual(locations[0]["posX"], -1.25)
+        self.assertTrue(os.path.exists(os.path.join(controller.args.map_root, "locations.json")))
+        self.assertEqual(broadcasts[-1]["type"], "locations_updated")
+
+    def test_locations_update_delete_and_clear(self):
+        controller = MobileController(self.make_args())
+        controller.broadcast = lambda _payload: None
+        first = controller.save_location({"name": "p1", "posX": 1, "posY": 2})
+        loc_id = first["id"]
+
+        controller.update_location(loc_id, {"posX": 3.5})
+        self.assertEqual(controller.load_locations()[0]["posX"], 3.5)
+
+        controller.delete_location(loc_id)
+        self.assertEqual(controller.load_locations(), [])
+
+        controller.save_location({"name": "p2", "posX": 4, "posY": 5})
+        controller.write_locations([])
+        self.assertEqual(controller.load_locations(), [])
 
 
 if __name__ == "__main__":

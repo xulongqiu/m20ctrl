@@ -2488,6 +2488,8 @@
                 this.heartbeatTimer = null;
                 this.heartbeatInterval = 5000; // 5秒心跳
                 this.m20Connected = false;
+                this.serverClockOffsetMs = 0;
+                this.hasServerClockOffset = false;
             }
 
             connect(backendUrl = 'ws://localhost:8080') {
@@ -2523,6 +2525,7 @@
                     this.ws.onmessage = (event) => {
                         try {
                             const data = JSON.parse(event.data);
+                            this.updateServerClock(data);
                             this.handleMessage(data);
                         } catch (e) {
                             logger.error(`消息解析失败: ${e.message}`);
@@ -2588,8 +2591,28 @@
                 }
             }
 
+            updateServerClock(data) {
+                if (!data || !Number.isFinite(Number(data.serverTimeMs))) return;
+                this.serverClockOffsetMs = Number(data.serverTimeMs) - Date.now();
+                this.hasServerClockOffset = true;
+            }
+
+            commandTimestampMs() {
+                return Date.now() + (this.hasServerClockOffset ? this.serverClockOffsetMs : 0);
+            }
+
             send(data) {
                 let sent = false;
+                const freshCommandTypes = [
+                    'motion_control',
+                    'usage_mode',
+                    'axis_control',
+                    'gait_switch',
+                    'light_control',
+                    'nav_task',
+                    'nav_cancel',
+                    'init_localize'
+                ];
                 
                 // 仅走本地 WebSocket 的消息类型（不需要远端转发）
                 const localOnlyTypes = [
@@ -2615,24 +2638,34 @@
                     'query_nav_status',
                     'load_locations',
                     'save_location',
+                    'delete_location',
+                    'update_location',
                     'clear_locations'
                 ];
+
+                if (freshCommandTypes.includes(data.type)) {
+                    data = { ...data, clientTs: this.commandTimestampMs() };
+                }
                 
                 if (localOnlyTypes.includes(data.type)) {
                     // 本地专用消息，只走 WebSocket
-                    if (this.isConnected && this.ws) {
+                    if (this.isConnected && this.ws && this.ws.readyState === WebSocket.OPEN) {
                         this.ws.send(JSON.stringify(data));
                         sent = true;
+                    } else {
+                        this.isConnected = false;
                     }
                 } else if (window.agoraManager && window.agoraManager.isConnected) {
                     // 声网 RTM 在线 → 优先走远端
                     logger.info(`[Agora RTM] ✉️ 远端发送: ${data.type}`);
                     window.agoraManager.sendCommand(data);
                     sent = true;
-                } else if (this.isConnected && this.ws) {
+                } else if (this.isConnected && this.ws && this.ws.readyState === WebSocket.OPEN) {
                     // RTM 不在线 → 回退到本地 WebSocket
                     this.ws.send(JSON.stringify(data));
                     sent = true;
+                } else {
+                    this.isConnected = false;
                 }
                 
                 return sent;
@@ -2798,6 +2831,8 @@
                     logger.recv(`命令响应 [${src} Type:${data.commandType} Cmd:${data.command}]: ${JSON.stringify(data.data)}`);
                     this.handleCommandResponse(data);
                 } else if (data.type === 'locations_updated') {
+                    if (window.mapManager) window.mapManager.setLocations(data.data || []);
+                    if (window.navView) window.navView.setLocations(data.data || []);
                     this.renderLocationList(data.data);
                 } else if (data.type === 'error') {
                     logger.error(data.message);
@@ -2868,7 +2903,12 @@
 
                 // 地图位置响应 (Type:1007, Cmd:2)
                 if (commandType === 1007 && command === 2) {
-                    const f2 = (v) => v != null ? v.toFixed(2) : '--';
+                    const f2 = (v) => {
+                        if (v == null || !Number.isFinite(Number(v))) return '--';
+                        const n = Number(v);
+                        if (Math.abs(n) < 0.005) return '0.00';
+                        return n.toFixed(2);
+                    };
                     this._set('navPosX', f2(data.PosX));
                     this._set('navPosY', f2(data.PosY));
                     this._set('navPosYaw', f2(data.Yaw));
@@ -2995,6 +3035,12 @@
                         const id = this.dataset.id;
                         const name = this.dataset.name || id;
                         if (!confirm(`删除地点 "${name}"?`)) return;
+                        if (isNosMapMode()) {
+                            if (sendLocationCommand('delete_location', { id })) {
+                                showNavFeedback(`删除地点请求已发送: ${name}`, 'info');
+                            }
+                            return;
+                        }
                         if (!window.mapManager || !window.mapManager.hasWritableFolder()) {
                             showNavFeedback('⚠️ 请先选择地图文件夹', 'error');
                             return;
@@ -3044,6 +3090,12 @@
                             const ny = parseFloat(editor.querySelector('input[data-field="y"]').value);
                             if (!Number.isFinite(nx) || !Number.isFinite(ny)) {
                                 showNavFeedback('⚠️ 坐标必须是数字', 'error');
+                                return;
+                            }
+                            if (isNosMapMode()) {
+                                if (sendLocationCommand('update_location', { id, updates: { posX: nx, posY: ny } })) {
+                                    showNavFeedback(`更新地点坐标请求已发送: (${nx.toFixed(3)}, ${ny.toFixed(3)})`, 'info');
+                                }
                                 return;
                             }
                             try {
@@ -3642,11 +3694,22 @@
             });
         }
 
+        function haltAxisControlForModeSwitch() {
+            if (window.driveController?.isOpen) {
+                window.driveController.close();
+                return true;
+            }
+            window.driveController?.stopSending?.();
+            if (axisTimer) {
+                clearInterval(axisTimer);
+                axisTimer = null;
+            }
+            return sendAxisZero();
+        }
+
         function switchUsageMode(mode, label) {
             const nextMode = Number(mode);
-            if (nextMode === 0) {
-                sendAxisZero();
-            }
+            haltAxisControlForModeSwitch();
             document.querySelectorAll('[data-usage-mode]').forEach(b => b.classList.remove('active'));
             const targetBtn = document.querySelector(`[data-usage-mode="${nextMode}"]`);
             if (targetBtn) targetBtn.classList.add('active');
@@ -4096,7 +4159,9 @@
             const msg = {
                 type: 'light_control',
                 light: 'front',
-                state: lightFrontOn
+                state: lightFrontOn,
+                front: lightFrontOn,
+                back: lightRearOn
             };
             if (connManager.send(msg)) {
                 logger.send(`前灯: ${lightFrontOn ? '开启' : '关闭'}`);
@@ -4112,7 +4177,9 @@
             const msg = {
                 type: 'light_control',
                 light: 'rear',
-                state: lightRearOn
+                state: lightRearOn,
+                front: lightFrontOn,
+                back: lightRearOn
             };
             if (connManager.send(msg)) {
                 logger.send(`后灯: ${lightRearOn ? '开启' : '关闭'}`);
@@ -4275,12 +4342,21 @@
                 return;
             }
 
-            if (!window.mapManager || !window.mapManager.hasWritableFolder()) {
-                showNavFeedback('⚠️ 请先选择地图文件夹，地点会保存到该文件夹的 locations.json', 'error');
-                return;
-            }
-
             try {
+                if (isNosMapMode()) {
+                    if (!sendLocationCommand('save_location', { payload: { name, posX, posY, posZ: 0, yaw } })) return;
+                    logger.send(`记录地点到 NOS: ${name} (${posX}, ${posY})`);
+                    document.getElementById('locName').value = '';
+                    document.getElementById('locPosX').value = '';
+                    document.getElementById('locPosY').value = '';
+                    document.getElementById('locYaw').value = '';
+                    showNavFeedback(`保存地点请求已发送「${name}」`, 'info');
+                    return;
+                }
+                if (!window.mapManager || !window.mapManager.hasWritableFolder()) {
+                    showNavFeedback('⚠️ 请先选择地图文件夹，地点会保存到该文件夹的 locations.json', 'error');
+                    return;
+                }
                 await window.mapManager.saveLocation({ name, posX, posY, posZ: 0, yaw });
                 logger.send(`记录地点: ${name} (${posX}, ${posY})`);
                 document.getElementById('locName').value = '';
@@ -4296,6 +4372,13 @@
         // 地图管理 - 清空
         document.getElementById('locClear').addEventListener('click', async function () {
             if (!confirm('确定要清空所有保存的地点吗？')) return;
+            if (isNosMapMode()) {
+                if (sendLocationCommand('clear_locations')) {
+                    logger.send('清空 NOS 地图地点');
+                    showNavFeedback('清空 NOS locations.json 请求已发送', 'info');
+                }
+                return;
+            }
             if (window.mapManager && window.mapManager.hasWritableFolder()) {
                 try {
                     await window.mapManager.clearLocations();
@@ -4321,6 +4404,18 @@
             el.style.background = type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#cce5ff';
             el.style.color = type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#004085';
             setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+
+        function isNosMapMode() {
+            return !!(window.mapManager && window.mapManager.remoteMap === true);
+        }
+
+        function sendLocationCommand(type, payload = {}) {
+            if (!connManager.send({ type, ...payload })) {
+                showNavFeedback('⚠️ 未连接到 NOS 后端，无法写入 locations.json', 'error');
+                return false;
+            }
+            return true;
         }
 
 
@@ -4421,6 +4516,7 @@
                 const baseMap = { pgm, yaml, folderName: 'NOS /map' };
                 mapManager.baseMap = baseMap;
                 mapManager.folderName = 'NOS /map';
+                mapManager.remoteMap = true;
                 mapManager.setStatus('已加载 NOS 地图: /map');
                 if (window.navView) window.navView.setBaseMap(baseMap);
 
@@ -4433,6 +4529,7 @@
                         if (window.navView) window.navView.setLocations(locations);
                     }
                 }
+                connManager.send({ type: 'load_locations' });
                 logger.info('已从 NOS HTTP 服务加载地图底图');
                 return true;
             } catch (err) {

@@ -213,10 +213,14 @@ class M20Protocol {
      * @param {string} light - 灯光位置: front/rear
      * @param {boolean} state - 开关状态
      */
-    buildLightControl(light, state) {
-        // 获取当前灯光状态并只修改指定的灯
-        const front = light === 'front' ? (state ? 1 : 0) : 0;
-        const back = light === 'rear' ? (state ? 1 : 0) : 0;
+    buildLightControl(light, state, states = null) {
+        // Prefer full front/back state so toggling one lamp does not reset the other.
+        const front = states && Object.prototype.hasOwnProperty.call(states, 'front')
+            ? (states.front ? 1 : 0)
+            : (light === 'front' ? (state ? 1 : 0) : 0);
+        const back = states && Object.prototype.hasOwnProperty.call(states, 'back')
+            ? (states.back ? 1 : 0)
+            : (light === 'rear' ? (state ? 1 : 0) : 0);
         const asdu = {
             PatrolDevice: {
                 Type: 1101,

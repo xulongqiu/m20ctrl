@@ -240,6 +240,7 @@
             this.folderName = '';
             this.locations = [];
             this.baseMap = null;
+            this.remoteMap = false;
         }
 
         getBaseMap() {
@@ -293,6 +294,7 @@
                 throw new Error('没有地图文件夹写入权限');
             }
             this.dirHandle = handle;
+            this.remoteMap = false;
             this.folderName = handle.name || 'selected map';
             this.setStatus(`已选择: ${this.folderName}`);
             await this.loadMapPreview();

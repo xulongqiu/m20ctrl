@@ -16,10 +16,18 @@ import threading
 import time
 import traceback
 import urllib.parse
+import uuid
 
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DEFAULT_MAP_ROOT = os.path.join(ROOT_DIR, "data")
+STALE_COMMAND_MAX_AGE_SEC = 5.0
+WS_IDLE_TIMEOUT_SEC = 30.0
+WS_SEND_TIMEOUT_SEC = 0.5
+FRESH_COMMAND_TYPES = {
+    "motion_control", "usage_mode", "axis_control", "gait_switch", "light_control",
+    "nav_task", "nav_cancel", "init_localize",
+}
 
 
 class M20ProtocolPy:
@@ -108,7 +116,15 @@ class M20ProtocolPy:
             "Yaw": float(axes.get("Yaw", 0.0)),
         })
 
-    def build_light_control(self, light, state):
+    def build_light_control(self, payload):
+        payload = payload or {}
+        if "front" in payload or "back" in payload:
+            return self.build_patrol(1101, 2, {
+                "Front": 1 if bool(payload.get("front")) else 0,
+                "Back": 1 if bool(payload.get("back")) else 0,
+            })
+        light = payload.get("light")
+        state = bool(payload.get("state"))
         return self.build_patrol(1101, 2, {
             "Front": 1 if light == "front" and state else 0,
             "Back": 1 if light == "rear" and state else 0,
@@ -457,6 +473,8 @@ class MobileController:
         self.nav_viz_last_received_at = 0.0
         self.nav_viz_last_sender = None
         self.nav_viz_ping_count = 0
+        self.last_nav_view = None
+        self.locations_lock = threading.Lock()
 
     def start(self):
         self._try_connect_vendor()
@@ -481,6 +499,10 @@ class MobileController:
             })
         handler.send_json({"type": "nav_link_status", **self.nav_status()})
         handler.send_json(self.nav_viz_status())
+        with self.nav_viz_lock:
+            last_nav_view = self.last_nav_view
+        if last_nav_view is not None:
+            handler.send_json({"type": "nav_view", "data": last_nav_view})
 
     def remove_ws(self, handler):
         with self.clients_lock:
@@ -542,6 +564,26 @@ class MobileController:
             if msg_type == "nav_viz_ping":
                 self.send_nav_viz_ping(payload.get("reason") or "frontend")
                 return self.nav_viz_status()
+            if msg_type == "load_locations":
+                return {"type": "locations_updated", "data": self.load_locations()}
+            if msg_type == "save_location":
+                self.save_location(payload.get("payload") or {})
+                return None
+            if msg_type == "delete_location":
+                self.delete_location(payload.get("id"))
+                return None
+            if msg_type == "update_location":
+                self.update_location(payload.get("id"), payload.get("updates") or {})
+                return None
+            if msg_type == "clear_locations":
+                self.write_locations([])
+                self.broadcast({"type": "locations_updated", "data": []})
+                return None
+
+            stale_reason = self.command_stale_reason(msg_type, payload)
+            if stale_reason:
+                print(f"[frontend] dropped command={msg_type} reason={stale_reason}", flush=True)
+                return {"type": "command_dropped", "message": stale_reason, "command": msg_type}
 
             frame = self._build_frame(msg_type, payload)
             if frame is None:
@@ -563,6 +605,20 @@ class MobileController:
             return {"type": "error", "message": f"{msg_type} 处理失败: {exc}"}
         return None
 
+    def command_stale_reason(self, msg_type, payload):
+        if msg_type not in FRESH_COMMAND_TYPES:
+            return None
+        client_ts = payload.get("clientTs")
+        if client_ts is None:
+            return "missing clientTs"
+        try:
+            age_sec = time.time() - (float(client_ts) / 1000.0)
+        except (TypeError, ValueError):
+            return f"invalid clientTs={client_ts!r}"
+        if age_sec > STALE_COMMAND_MAX_AGE_SEC:
+            return f"stale age={age_sec:.3f}s limit={STALE_COMMAND_MAX_AGE_SEC:.3f}s"
+        return None
+
     def _build_frame(self, msg_type, payload):
         if msg_type == "motion_control":
             return self.protocol.build_motion_control(payload.get("action"))
@@ -573,7 +629,7 @@ class MobileController:
         if msg_type == "gait_switch":
             return self.protocol.build_gait_switch(payload.get("gait", 0))
         if msg_type == "light_control":
-            return self.protocol.build_light_control(payload.get("light"), bool(payload.get("state")))
+            return self.protocol.build_light_control(payload)
         if msg_type == "nav_task":
             return self.protocol.build_nav_task(payload.get("payload") or {})
         if msg_type == "nav_cancel":
@@ -587,6 +643,76 @@ class MobileController:
         if msg_type == "query_nav_status":
             return self.protocol.build_query_nav_task_status()
         return None
+
+    def locations_path(self):
+        return os.path.join(os.path.abspath(self.args.map_root), "locations.json")
+
+    def load_locations(self):
+        path = self.locations_path()
+        try:
+            with self.locations_lock:
+                if not os.path.exists(path):
+                    return []
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            return data if isinstance(data, list) else []
+        except Exception as exc:
+            print(f"[locations] load failed: {exc}", flush=True)
+            return []
+
+    def write_locations(self, locations):
+        path = self.locations_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with self.locations_lock:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(locations, f, ensure_ascii=False, indent=2)
+
+    def save_location(self, location):
+        locations = self.load_locations()
+        new_location = {
+            "id": location.get("id") or f"loc-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}",
+            "name": location.get("name") or "未命名",
+            "posX": float(location.get("posX") or 0.0),
+            "posY": float(location.get("posY") or 0.0),
+            "posZ": float(location.get("posZ") or 0.0),
+            "yaw": float(location.get("yaw") or 0.0),
+            "createdAt": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime()),
+        }
+        locations.append(new_location)
+        self.write_locations(locations)
+        print(f"[locations] saved {new_location['name']} -> {self.locations_path()}", flush=True)
+        self.broadcast({"type": "locations_updated", "data": locations})
+        return new_location
+
+    def delete_location(self, loc_id):
+        locations = self.load_locations()
+        next_locations = [l for l in locations if str(l.get("id")) != str(loc_id)]
+        if len(next_locations) == len(locations):
+            raise ValueError(f"地点 id={loc_id} 不存在")
+        self.write_locations(next_locations)
+        print(f"[locations] deleted id={loc_id}", flush=True)
+        self.broadcast({"type": "locations_updated", "data": next_locations})
+
+    def update_location(self, loc_id, updates):
+        locations = self.load_locations()
+        numeric_keys = {"posX", "posY", "posZ", "yaw"}
+        found = False
+        next_locations = []
+        for item in locations:
+            if str(item.get("id")) != str(loc_id):
+                next_locations.append(item)
+                continue
+            patch = {}
+            for key, value in updates.items():
+                patch[key] = float(value) if key in numeric_keys else value
+            patch["updatedAt"] = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime())
+            next_locations.append({**item, **patch})
+            found = True
+        if not found:
+            raise ValueError(f"地点 id={loc_id} 不存在")
+        self.write_locations(next_locations)
+        print(f"[locations] updated id={loc_id}", flush=True)
+        self.broadcast({"type": "locations_updated", "data": next_locations})
 
     def _try_connect_vendor(self):
         try:
@@ -639,8 +765,9 @@ class MobileController:
                 text = data.decode("utf-8")
                 if text.startswith('{"type":"register"') or text.startswith('{"type": "register"'):
                     continue
-                self.record_nav_viz_packet(addr)
-                self.broadcast({"type": "nav_view", "data": json.loads(text)})
+                snapshot = json.loads(text)
+                self.record_nav_view(snapshot, addr)
+                self.broadcast({"type": "nav_view", "data": snapshot})
                 self.broadcast(self.nav_viz_status())
             except Exception as exc:
                 print(f"[nav_viz] error: {exc}")
@@ -650,6 +777,19 @@ class MobileController:
             self.nav_viz_packet_count += 1
             self.nav_viz_last_received_at = time.time()
             self.nav_viz_last_sender = f"{addr[0]}:{addr[1]}"
+
+    def record_nav_view(self, data, addr):
+        with self.nav_viz_lock:
+            self.nav_viz_packet_count += 1
+            self.nav_viz_last_received_at = time.time()
+            self.nav_viz_last_sender = f"{addr[0]}:{addr[1]}"
+            self.last_nav_view = data
+            count = self.nav_viz_packet_count
+            sender = self.nav_viz_last_sender
+        if count == 1 or count % 50 == 0:
+            with self.clients_lock:
+                client_count = len(self.clients)
+            print(f"[nav_viz] packet={count} sender={sender} clients={client_count}", flush=True)
 
     def nav_viz_status(self):
         with self.nav_viz_lock:
@@ -698,6 +838,8 @@ class WebSocketHandler(socketserver.BaseRequestHandler):
         try:
             if not self._handshake():
                 return
+            self.request.settimeout(WS_IDLE_TIMEOUT_SEC)
+            self._set_send_timeout(WS_SEND_TIMEOUT_SEC)
             self.controller.add_ws(self)
             buffer = b""
             while True:
@@ -715,6 +857,8 @@ class WebSocketHandler(socketserver.BaseRequestHandler):
                         self.send_json({"type": "error", "message": str(exc)})
         except ConnectionError:
             pass
+        except socket.timeout:
+            print("[websocket] idle timeout; closing client", flush=True)
         except Exception:
             traceback.print_exc()
         finally:
@@ -744,7 +888,17 @@ class WebSocketHandler(socketserver.BaseRequestHandler):
         ).encode("ascii"))
         return True
 
+    def _set_send_timeout(self, timeout_sec):
+        seconds = int(timeout_sec)
+        micros = int((timeout_sec - seconds) * 1000000)
+        try:
+            self.request.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack("ll", seconds, micros))
+        except OSError as exc:
+            print(f"[websocket] failed to set send timeout: {exc}", flush=True)
+
     def send_json(self, payload):
+        if isinstance(payload, dict) and "serverTimeMs" not in payload:
+            payload = {**payload, "serverTimeMs": int(time.time() * 1000)}
         self.request.sendall(WebSocketCodec.encode_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":"))))
 
 
