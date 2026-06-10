@@ -33,6 +33,19 @@ build/
 *.tmp
 *.temp
 .cache/
+__pycache__/
+*.py[cod]
+
+# Local assistant/cache artifacts
+.Codex
+setup-claude-memory.sh
+
+# Failed/temporary SDK downloads. The app uses tracked agora-rtm-sdk.js.
+agora-rtm-sdk-*.js
+agora_bridge/agora-rtm-sdk-*.js
+
+# Local map backups
+data/*.first
 
 # OS files
 Thumbs.db
