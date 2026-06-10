@@ -13,6 +13,7 @@
 
 ## ✅ 已完成
 
+- [2026-06-10] 按用户要求将 `setup-claude-memory.sh` 纳入仓库，作为新环境初始化 `.claude/` 记忆文件和 `CLAUDE.md` 的辅助脚本；`.gitignore` 继续忽略本地缓存、坏 SDK 下载文件和地图备份。
 - [2026-06-10] 审计未跟踪文件：确认 `.claude/`、`CLAUDE.md`、`AGENTS.md` 已 tracked；未跟踪的 versioned Agora SDK 文件是下载失败错误页且未被引用，`__pycache__`、`.Codex`、`data/*.first` 等为本地产物。新增 `.gitignore` 规则忽略这些非运行必需文件，避免其它机器 clone 缺文件或误提交坏 SDK。
 - [2026-06-06] 修复 NOS 地图模式地点写入：HTTP `/map` 加载成功后标记 `mapManager.remoteMap=true`，新增/删除/更新/清空地点改走 WebSocket 后端；Python 后端把地点数据写入 `args.map_root/locations.json`（当前 `/home/user/m20-fastlio/maps/locations.json`）。已同步 NOS 并重启，NOS 本机 WebSocket smoke 保存/删除测试通过且无测试点残留。
 - [2026-06-06] 修复控制命令过期误判：Python 后端命令过期阈值从 1.5s 调整到 5s，并在所有 WebSocket JSON 响应附带 `serverTimeMs`；前端维护 `serverClockOffsetMs`，控制命令使用校准后的 `clientTs`，避免手机/NOS 时钟偏差导致即时命令被 drop。已同步 NOS 并重启，服务 active。
