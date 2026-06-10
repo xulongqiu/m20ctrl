@@ -12,9 +12,27 @@
 - **定位初始化** — 下发初始化定位指令，设置机器狗在地图中的初始位姿
 - **设备控制** — 前后照明灯独立开关控制
 
-## 🚀 快速启动
+## 🚀 快速启动（桌面本地）
 
-**推荐方式：一键脚本**
+### 前置条件
+
+- Node.js 14+（桌面本地 Node 后端需要）
+- 现代浏览器（Chrome/Edge 推荐，地图文件夹读写依赖 File System Access API）
+- 能访问 M20 机器狗默认地址 `10.21.31.103:30001`
+
+### 首次启动
+
+> 首次 clone 后必须先安装 `backend/` 依赖；根目录一键脚本不会自动执行 `npm install`。
+
+```bash
+cd backend
+npm install
+npm start
+```
+
+然后在浏览器中打开项目根目录的 `index.html`，页面顶部确认 M20 地址后点击“连接”。
+
+### 日常启动脚本
 
 双击运行项目根目录下对应系统的启动脚本，自动拉起后端并打开浏览器：
 - **Mac**: `start.command`
@@ -22,6 +40,7 @@
 - **Linux**: `./start_linux.sh`
 
 > 脚本会检测后端是否已运行，如已运行则只打开前端。按 `Ctrl+C` 停止服务。
+> 如果是新 clone 的目录，请先完成上面的 `cd backend && npm install`。
 
 **手动启动**
 
@@ -30,19 +49,92 @@ cd backend && npm install && npm start
 ```
 然后在浏览器中打开 `index.html`，页面顶部确认 M20 地址后点击"连接"。
 
+## 📱 部署到 NOS（手机/AP 场景）
+
+NOS 上没有 Node 运行环境时，使用项目内置的 Python 标准库后端，不需要 `pip install`：
+
+- HTTP 静态页面：`8000/tcp`
+- WebSocket 控制：`8080/tcp`
+- nav_viz UDP 接收：`30013/udp`
+- M20 原厂链路：`10.21.31.103:30001`
+- 自研导航链路：`127.0.0.1:30011`
+- nav_viz register 目标：`127.0.0.1:30012`
+- 默认地图目录：`/home/user/m20-fastlio/maps`
+
+### 1. 同步代码到 NOS
+
+在本机项目根目录执行：
+
+```bash
+rsync -av --delete \
+  --exclude '.git/' \
+  --exclude 'node_modules/' \
+  --exclude 'backend/node_modules/' \
+  ./ user@10.21.31.106:/home/user/m20ctrl/
+```
+
+### 2. 安装 systemd service
+
+```bash
+ssh user@10.21.31.106
+cd /home/user/m20ctrl
+chmod +x start_nos_python.sh
+sudo cp deploy/m20ctrl.service /etc/systemd/system/m20ctrl.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now m20ctrl.service
+```
+
+### 3. 验证服务
+
+```bash
+sudo systemctl status m20ctrl.service --no-pager -l
+journalctl -u m20ctrl.service -n 80 --no-pager
+ss -ltnup | grep -E ':(8000|8080|30013)\b'
+```
+
+手机连接 NOS AP 后访问：
+
+```text
+http://10.21.31.106:8000/index.html
+```
+
+### NOS 地图文件要求
+
+导航视图会从 `MAP_ROOT` 读取以下文件：
+
+```text
+/home/user/m20-fastlio/maps/occ_grid.pgm
+/home/user/m20-fastlio/maps/occ_grid.yaml
+/home/user/m20-fastlio/maps/locations.json
+```
+
+如果地图目录不是默认路径，修改 `/etc/systemd/system/m20ctrl.service` 里的 `Environment=MAP_ROOT=...`，然后执行：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart m20ctrl.service
+```
+
 ## 📁 项目结构
 
 ```
 m20ctrl/
 ├── index.html              # 前端单页应用
+├── nav_view.js             # 导航视图 Canvas 渲染
+├── map_manager.js          # 地图/地点管理
 ├── start.command            # macOS 启动脚本
 ├── start_windows.bat        # Windows 启动脚本
 ├── start_linux.sh           # Linux 启动脚本
+├── start_nos_python.sh      # NOS Python 后端启动脚本
+├── deploy/
+│   └── m20ctrl.service      # NOS systemd service
 ├── data/
 │   └── locations.json       # 地点记录持久化存储
 ├── docs/
 │   ├── m20_dev_manual.md    # M20 软件开发手册
 │   └── m20protocol.md       # 通信协议摘要
+├── backend_py/
+│   └── server.py            # NOS Python HTTP/WebSocket/APDU/nav_viz 后端
 └── backend/
     ├── server.js            # WebSocket 服务器 + 消息路由
     ├── m20Client.js         # M20 TCP 客户端（含自动重连）
@@ -53,9 +145,13 @@ m20ctrl/
 ## 🏗️ 系统架构
 
 ```
-浏览器 (index.html)  ←—WebSocket JSON—→  Node.js 后端  ←—TCP 二进制 APDU—→  M20 机器狗
-                                          ↕
-                                    data/locations.json
+桌面本地：
+浏览器 (index.html) ←—WebSocket JSON—→ Node.js 后端 ←—TCP 二进制 APDU—→ M20 机器狗
+
+NOS 手机/AP：
+手机浏览器 ←—HTTP 8000 / WebSocket 8080—→ Python 后端 ←—TCP APDU—→ M20 / 自研导航服务
+                                                ↑
+                                       UDP 30013 nav_viz
 ```
 
 - **前端 → 后端**：WebSocket JSON 消息（运动/导航/查询/地点管理）
